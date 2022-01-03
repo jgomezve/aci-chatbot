@@ -64,9 +64,19 @@ func main() {
 	if err == nil {
 		fmt.Println("Logged in successfully")
 	}
-	wbx := webex.NewWebexClient("MDRiNDRjN2EtNWQxOS00MmU1LWE4ZDAtODIwMmI2MjUxMzY0NWE4OGFmOTItODk5_PF84_1eb65fdf-9643-417f-9974-ad72cae0e10f")
-	http.HandleFunc("/message", messageHandler(&wbx))
-	http.ListenAndServe(":7001", nil)
-	wbx.SendMessageToRoom("Testing", "Y2lzY29zcGFyazovL3VzL1JPT00vZjRmZWZjZDAtNjI3NS0xMWVjLThiMTQtMDEyYWYxZGQ1M2Vl")
+	// wbx := webex.NewWebexClient("MDRiNDRjN2EtNWQxOS00MmU1LWE4ZDAtODIwMmI2MjUxMzY0NWE4OGFmOTItODk5_PF84_1eb65fdf-9643-417f-9974-ad72cae0e10f")
+
+	// rooms, _ := wbx.GetRoomIds()
+	// for _, room := range rooms {
+	// 	fmt.Println(room.Id)
+	// 	fmt.Println(room.Title)
+	// }
+	// a := wbx.SendMessageToRoom("Test", "200Y2lzY29zcGFyazovL3VzL1JPT00vZjRmZWZjZDAtNjI3NS0xMWVjLThiMTQtMDEyYWYxZGQ1M2Vl")
+	// if a != nil {
+	// 	fmt.Println("Error")
+	// }
+	// http.HandleFunc("/message", messageHandler(&wbx))
+	// http.ListenAndServe(":7001", nil)
+	// wbx.SendMessageToRoom("Testing", "Y2lzY29zcGFyazovL3VzL1JPT00vZjRmZWZjZDAtNjI3NS0xMWVjLThiMTQtMDEyYWYxZGQ1M2Vl")
 
 }

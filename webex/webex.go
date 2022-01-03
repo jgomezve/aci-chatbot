@@ -149,6 +149,7 @@ func (wbx *WebexClient) makeCall(m string, url string, p io.Reader) (int, []byte
 
 	// Why defer ?
 	defer resp.Body.Close()
+	print(resp.StatusCode)
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {

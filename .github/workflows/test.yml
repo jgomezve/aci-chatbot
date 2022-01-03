@@ -1,0 +1,22 @@
+# This GitHub action runs your tests for each commit push and/or PR. Optionally
+# you can turn it on using a cron schedule for regular testing.
+#
+name: Tests
+on:
+  - push
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v2.1.5
+        with:
+          go-version: '1.15'
+        id: go
+
+      - name: Test Webec Client
+        run: |
+          cd webex
+          go test -v -cover

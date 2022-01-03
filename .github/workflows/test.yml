@@ -16,11 +16,26 @@ jobs:
         with:
           go-version: '1.15'
         id: go
+
       - name: Test Webex Client
         run: |
           cd webex
           go test -v -cover
+
       - name: Test APIC Client
         run: |
           cd apic
           go test -v -cover
+
+      - name: Webex Notification
+        if: always()
+        uses: qsnyder/action-wxt@master
+        env:
+          TOKEN: ${{ secrets.WEBEX_TOKEN }}
+          ROOMID: ${{ secrets.WEBEX_ROOM_ID }}
+          MESSAGE: |
+            [**[${{ job.status }}] ${{ github.repository }} #${{ github.run_number }}**](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            * Commit: [${{ github.event.head_commit.message }}](${{ github.event.head_commit.url }})[${{ github.event.pull_request.title }}](${{ github.event.pull_request.html_url }})
+            * Author: ${{ github.event.sender.login }}
+            * Branch: ${{ github.ref }} ${{ github.head_ref }}
+            * Event: ${{ github.event_name }}

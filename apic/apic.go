@@ -18,13 +18,29 @@ type ApicLoginReply struct {
 	TotalCount string               `json:"totalCount"`
 	Imdata     []ApicAaaLoginImData `json:"imdata"`
 }
+type ApicProcEntityReply struct {
+	TotalCount string                       `json:"totalCount"`
+	Imdata     []ApicProcEnitityLoginImData `json:"imdata"`
+}
 
+type ApicProcEnitityLoginImData struct {
+	ProcEntity ApicProcEntity `json:"procEntity"`
+}
 type ApicAaaLoginImData struct {
 	AaaLogin ApicAaaLogin `json:"aaaLogin"`
 }
 type ApicAaaLogin struct {
 	Attributes ApicLoginAttributes `json:"attributes"`
 	Children   interface{}         `json:"children"`
+}
+type ApicProcEntity struct {
+	Attributes ApicProcEntityAttributes `json:"attributes"`
+	Children   interface{}              `json:"children"`
+}
+
+type ApicProcEntityAttributes struct {
+	CpuPct  string `json:"cpuPct"`
+	MemFree string `json:"memFree"`
 }
 
 type ApicLoginAttributes struct {
@@ -109,6 +125,27 @@ func (client *ApicClient) login() error {
 
 }
 
+func (client *ApicClient) GetProcEntity() interface{} {
+	var result ApicProcEntityReply
+	status, content, err := client.makeCall(http.MethodGet, "/api/node/class/procEntity.json", nil)
+
+	if err != nil {
+		return nil
+	}
+	if status != 200 {
+		return nil
+
+	}
+
+	err = json.Unmarshal(content, &result)
+	if err != nil {
+		return nil
+	}
+
+	return result.Imdata[0].ProcEntity
+
+}
+
 func (client *ApicClient) makeCall(m string, url string, p io.Reader) (int, []byte, error) {
 	req, err := http.NewRequest(m, client.baseURL+url, p)
 	if err != nil {
@@ -116,8 +153,10 @@ func (client *ApicClient) makeCall(m string, url string, p io.Reader) (int, []by
 	}
 
 	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Content-Type", "application/json")
-	//req.Header.Add("Authorization", "Bearer "+wbx.tkn)
+	// req.Header.Add("Content-Type", "application/json")
+	if url != "/api/aaaLogin.json" {
+		req.Header.Set("Cookie", "APIC-cookie="+client.tkn)
+	}
 
 	resp, err := client.httpClient.Do(req)
 	if err != nil {

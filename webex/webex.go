@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -48,6 +47,13 @@ type WebexMessage struct {
 	Text   string `json:"text"`
 }
 
+type WebexWebhook struct {
+	Name      string `json:"name"`
+	TargetUrl string `json:"targetUrl"`
+	Resource  string `json:"resource"`
+	Event     string `json:"event"`
+}
+
 // HttpClient interface type
 type HttpClient interface {
 	Do(req *http.Request) (*http.Response, error)
@@ -71,37 +77,62 @@ func NewWebexClient(tkn string) WebexClient {
 	return wbx
 }
 
+func (wbx *WebexClient) GetBaseUrl() string {
+	return wbx.baseURL
+}
+
+func (wbx *WebexClient) CreateWebhook(name, url, resource, event string) error {
+	req, err := wbx.makeCall(http.MethodPost, "/v1/webhooks", WebexWebhook{
+		Name:      name,
+		TargetUrl: url,
+		Resource:  resource,
+		Event:     event,
+	})
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return err
+	}
+	err = wbx.doCall(req, nil)
+
+	if err != nil {
+		log.Println("Error: ", err)
+		return err
+	}
+
+	return nil
+}
+
 func (wbx *WebexClient) GetMessages(roomId string, max int) ([]WebexMessageR, error) {
 	var result WebexMessagesReply
 	url := "/v1/messages?" + "roomId=" + roomId + "&max=" + fmt.Sprint(max)
 
-	_, content, err := wbx.makeCall(http.MethodGet, url, nil)
+	req, err := wbx.makeCall(http.MethodGet, url, nil)
 	if err != nil {
 		fmt.Println("Error: ", err)
 		return result.Messages, err
 	}
 
-	err = json.Unmarshal(content, &result)
+	err = wbx.doCall(req, &result)
 	if err != nil {
 		log.Println("Error: ", err)
 		return result.Messages, err
 	}
 
 	return result.Messages, nil
-
 }
 
 func (wbx *WebexClient) GetRoomIds() ([]WebexRoom, error) {
 
 	var result WebexRoomsReply
 
-	_, content, err := wbx.makeCall(http.MethodGet, "/v1/rooms", nil)
+	req, err := wbx.makeCall(http.MethodGet, "/v1/rooms", nil)
 	if err != nil {
 		fmt.Println("Error: ", err)
 		return result.Rooms, err
 	}
 
-	err = json.Unmarshal(content, &result)
+	err = wbx.doCall(req, &result)
+
 	if err != nil {
 		log.Println("Error: ", err)
 		return result.Rooms, err
@@ -111,50 +142,62 @@ func (wbx *WebexClient) GetRoomIds() ([]WebexRoom, error) {
 }
 
 func (wbx *WebexClient) SendMessageToRoom(m string, roomId string) error {
-	var payload WebexMessage
-	payload.RoomId = roomId
-	payload.Text = m
 
-	jsonValue, err := json.Marshal(payload)
+	req, err := wbx.makeCall(http.MethodPost, "/v1/messages", WebexMessage{RoomId: roomId, Text: m})
 	if err != nil {
 		fmt.Println("Error: ", err)
 		return err
 	}
 
-	code, _, err := wbx.makeCall(http.MethodPost, "/v1/messages", bytes.NewBuffer(jsonValue))
+	err = wbx.doCall(req, nil)
+
 	if err != nil {
-		fmt.Println("Error: ", err)
+		log.Println("Error: ", err)
 		return err
 	}
-	if code == 400 {
-		return fmt.Errorf("unknown room id %s", roomId)
-	}
+
 	return nil
 }
 
-func (wbx *WebexClient) makeCall(m string, url string, p io.Reader) (int, []byte, error) {
-	req, err := http.NewRequest(m, wbx.baseURL+url, p)
+func (wbx *WebexClient) makeCall(m string, url string, p interface{}) (*http.Request, error) {
+
+	jp, err := json.Marshal(p)
 	if err != nil {
-		return 0, nil, errors.New("unable to create a new HTTP request")
+		return nil, errors.New("unable to marshal the paylaod")
+	}
+	req, err := http.NewRequest(m, wbx.baseURL+url, bytes.NewBuffer(jp))
+	if err != nil {
+		return nil, errors.New("unable to create a new HTTP request")
 	}
 
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", "Bearer "+wbx.tkn)
 
+	return req, nil
+
+}
+
+func (wbx *WebexClient) doCall(req *http.Request, res interface{}) error {
 	resp, err := wbx.httpClient.Do(req)
 	if err != nil {
-		return 0, nil, errors.New("unable to send the HTTP request")
+		return errors.New("unable to send the HTTP request")
 	}
 
-	// Why defer ?
 	defer resp.Body.Close()
-	print(resp.StatusCode)
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
-		return 0, nil, errors.New("unable to read the response body")
+		return errors.New("unable to read the response body")
 	}
-	return resp.StatusCode, body, nil
 
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("error processing this request %s\n API message %s", req.URL, body)
+	}
+
+	err = json.Unmarshal(body, &res)
+	if err != nil {
+		return errors.New("unable to read the response body")
+	}
+	return nil
 }

@@ -67,9 +67,14 @@ func TestGetRoomsId(t *testing.T) {
 }
 
 func TestSendMessageToRoom(t *testing.T) {
+	messageM := WebexMessageR{Text: "First Message"}
+
+	jsonBytes, _ := json.Marshal(messageM)
 
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		equals(t, req.URL.String(), "/v1/messages")
+		rw.WriteHeader(200)
+		rw.Write(jsonBytes)
 	}))
 	defer server.Close()
 

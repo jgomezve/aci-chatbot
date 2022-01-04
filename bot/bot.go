@@ -1,8 +1,8 @@
-package main
+package bot
 
 import (
-	"chatbox/apic"
-	"chatbox/webex"
+	"chatbot/apic"
+	"chatbot/webex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -80,7 +80,7 @@ func testHandler(wbx *webex.WebexClient) http.HandlerFunc {
 }
 func webhookHandler(wbx *webex.WebexClient, a *apic.ApicClient, cmd map[string]Command) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var payload WebexWebhook
+		var payload webex.WebexWebhook
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			log.Println("Error: ", err)

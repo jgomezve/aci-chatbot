@@ -48,10 +48,28 @@ type WebexMessage struct {
 }
 
 type WebexWebhook struct {
-	Name      string `json:"name"`
-	TargetUrl string `json:"targetUrl"`
-	Resource  string `json:"resource"`
-	Event     string `json:"event"`
+	Id        string           `json:"id"`
+	Name      string           `json:"name"`
+	TargetUrl string           `json:"targetUrl"`
+	Resource  string           `json:"resource"`
+	Event     string           `json:"event"`
+	OrgId     string           `json:"orgId"`
+	CreatedBy string           `json:"createdBy"`
+	AppId     string           `json:"appId"`
+	OwnerId   string           `json:"OwnerId"`
+	Status    string           `json:"status"`
+	Created   string           `json:"created"`
+	ActorId   string           `json:"actorId"`
+	Data      WebexWebhookData `json:"data"`
+}
+
+type WebexWebhookData struct {
+	Id          string `json:"id"`
+	RoomId      string `json:"roomId"`
+	RoomType    string `json:"roomType"`
+	PersonId    string `json:"personId"`
+	PersonEmail string `json:"personEmail"`
+	Created     string `json:"created"`
 }
 
 // HttpClient interface type

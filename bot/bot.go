@@ -48,8 +48,11 @@ func NewBot(wbx *webex.WebexClient, apic *apic.ApicClient, botUrl string) Bot {
 
 // Command Handlers
 func cpuCommand(c *apic.ApicClient) string {
-	stats := c.GetProcEntity().(apic.ApicProcEntity).Attributes
-	return fmt.Sprintf("Hi ! CPU is %s - Memory is %s", stats.CpuPct, stats.MemFree)
+	res := ""
+	for _, item := range c.GetProcEntity() {
+		res = res + "\n- **Proc** " + item.Dn + "\t💻 **CPU**: " + item.CpuPct + "\t💾 **Memory**: " + item.MemFree
+	}
+	return fmt.Sprintf("Hi 🤖 !%s", res)
 }
 
 func helpCommand(cmd map[string]Command) Callback {

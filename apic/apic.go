@@ -72,7 +72,7 @@ func NewApicClient(url, usr, pwd string, options ...Option) (ApicClient, error) 
 
 func (client *ApicClient) login() error {
 
-	var result ApicLoginReply
+	var result map[string]interface{}
 	loginPayload := fmt.Sprintf(`{"aaaUser":{"attributes":{"name":"%s","pwd":"%s"}}}`, client.usr, client.pwd)
 	req, err := client.makeCall(http.MethodPost, "/api/aaaLogin.json", strings.NewReader(loginPayload))
 	if err != nil {
@@ -83,25 +83,49 @@ func (client *ApicClient) login() error {
 		log.Println("Error: ", err)
 		return err
 	}
-	client.tkn = result.Imdata[0].AaaLogin.Attributes.Token
+
+	proc := result["imdata"].([]interface{})
+
+	var res []aaaLogin
+
+	for _, item := range proc {
+		var res2 aaaLogin
+		jsonString, _ := json.Marshal(item.(map[string]interface{})["aaaLogin"].(map[string]interface{})["attributes"])
+		json.Unmarshal(jsonString, &res2)
+		res = append(res, res2)
+	}
+
+	client.tkn = res[0].Token
 	return nil
 
 }
 
-func (client *ApicClient) GetProcEntity() interface{} {
-	var result ApicProcEntityReply
+func (client *ApicClient) GetProcEntity() []procEntity {
+	var result map[string]interface{}
 	req, err := client.makeCall(http.MethodGet, "/api/node/class/procEntity.json", nil)
 
 	if err != nil {
-		return nil
+		return []procEntity{}
 	}
 
 	if err = client.doCall(req, &result); err != nil {
 		log.Println("Error: ", err)
-		return err
+		return []procEntity{}
 	}
-	fmt.Print(result)
-	return result.Imdata[0].ProcEntity
+
+	proc := result["imdata"].([]interface{})
+
+	var res []procEntity
+
+	for _, item := range proc {
+		var res2 procEntity
+		jsonString, _ := json.Marshal(item.(map[string]interface{})["procEntity"].(map[string]interface{})["attributes"])
+		json.Unmarshal(jsonString, &res2)
+		res = append(res, res2)
+	}
+
+	return res
+	//return result.Imdata[0].ProcEntity
 
 }
 

@@ -43,33 +43,33 @@ type WebexMessageR struct {
 }
 
 type WebexMessage struct {
-	RoomId string `json:"roomId"`
-	Text   string `json:"text"`
+	RoomId   string `json:"roomId"`
+	Markdown string `json:"markdown"`
 }
 
 type WebexWebhook struct {
-	Id        string           `json:"id"`
-	Name      string           `json:"name"`
-	TargetUrl string           `json:"targetUrl"`
-	Resource  string           `json:"resource"`
-	Event     string           `json:"event"`
-	OrgId     string           `json:"orgId"`
-	CreatedBy string           `json:"createdBy"`
-	AppId     string           `json:"appId"`
-	OwnerId   string           `json:"OwnerId"`
-	Status    string           `json:"status"`
-	Created   string           `json:"created"`
-	ActorId   string           `json:"actorId"`
-	Data      WebexWebhookData `json:"data"`
+	Id        string            `json:"id,omitempty"`
+	Name      string            `json:"name,omitempty"`
+	TargetUrl string            `json:"targetUrl,omitempty"`
+	Resource  string            `json:"resource,omitempty"`
+	Event     string            `json:"event,omitempty"`
+	OrgId     string            `json:"orgId,omitempty"`
+	CreatedBy string            `json:"createdBy,omitempty"`
+	AppId     string            `json:"appId,omitempty"`
+	OwnerId   string            `json:"OwnerId,omitempty"`
+	Status    string            `json:"status,omitempty"`
+	Created   string            `json:"created,omitempty"`
+	ActorId   string            `json:"actorId,omitempty"`
+	Data      *WebexWebhookData `json:"data,omitempty"`
 }
 
 type WebexWebhookData struct {
-	Id          string `json:"id"`
-	RoomId      string `json:"roomId"`
-	RoomType    string `json:"roomType"`
-	PersonId    string `json:"personId"`
-	PersonEmail string `json:"personEmail"`
-	Created     string `json:"created"`
+	Id          string `json:"id,omitempty"`
+	RoomId      string `json:"roomId,omitempty"`
+	RoomType    string `json:"roomType,omitempty"`
+	PersonId    string `json:"personId,omitempty"`
+	PersonEmail string `json:"personEmail,omitempty"`
+	Created     string `json:"created,omitempty"`
 }
 
 // HttpClient interface type
@@ -163,8 +163,8 @@ func (wbx *WebexClient) GetRoomIds() ([]WebexRoom, error) {
 func (wbx *WebexClient) SendMessageToRoom(m string, roomId string) error {
 
 	req, err := wbx.makeCall(http.MethodPost, "/v1/messages", WebexMessage{
-		RoomId: roomId,
-		Text:   m,
+		RoomId:   roomId,
+		Markdown: m,
 	})
 	if err != nil {
 		fmt.Println("Error: ", err)
@@ -184,7 +184,6 @@ func (wbx *WebexClient) SendMessageToRoom(m string, roomId string) error {
 func (wbx *WebexClient) makeCall(m string, url string, p interface{}) (*http.Request, error) {
 
 	jp, err := json.Marshal(p)
-	fmt.Printf("-- %s ---", jp)
 
 	if err != nil {
 		return nil, errors.New("unable to marshal the paylaod")
@@ -198,7 +197,6 @@ func (wbx *WebexClient) makeCall(m string, url string, p interface{}) (*http.Req
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", "Bearer "+wbx.tkn)
 
-	fmt.Printf("-- %s ---", req.Body)
 	return req, nil
 
 }

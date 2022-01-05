@@ -62,6 +62,65 @@ func (wbx *WebexClient) CreateWebhook(name, url, resource, event string) error {
 	return nil
 }
 
+func (wbx *WebexClient) GetWebHooks() ([]WebexWebhook, error) {
+
+	var result WebexWebhookReply
+
+	req, err := wbx.makeCall(http.MethodGet, "/v1/webhooks", nil)
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return []WebexWebhook{}, err
+	}
+
+	err = wbx.doCall(req, &result)
+
+	if err != nil {
+		log.Println("Error: ", err)
+		return []WebexWebhook{}, err
+	}
+
+	return result.Webhooks, nil
+}
+
+func (wbx *WebexClient) UpdateWebhook(name, tUrl, id string) error {
+	url := "/v1/webhooks/" + id
+	req, err := wbx.makeCall(http.MethodPut, url, WebexWebhook{
+		Name:      name,
+		TargetUrl: tUrl,
+	})
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return err
+	}
+
+	err = wbx.doCall(req, nil)
+
+	if err != nil {
+		log.Println("Error: ", err)
+		return err
+	}
+
+	return nil
+}
+
+func (wbx *WebexClient) DeleteWebhook(name, tUrl, id string) error {
+	url := "/v1/webhooks/" + id
+	req, err := wbx.makeCall(http.MethodDelete, url, nil)
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return err
+	}
+
+	err = wbx.doCall(req, nil)
+
+	if err != nil {
+		log.Println("Error: ", err)
+		return err
+	}
+
+	return nil
+}
+
 func (wbx *WebexClient) GetBotDetails() (WebexPeople, error) {
 
 	var result WebexPeople
@@ -103,7 +162,7 @@ func (wbx *WebexClient) GetPersonInfromation(id string) (WebexPeople, error) {
 	return result.People[0], nil
 }
 
-func (wbx *WebexClient) GetMessages(roomId string, max int) ([]WebexMessageR, error) {
+func (wbx *WebexClient) GetMessages(roomId string, max int) ([]WebexMessage, error) {
 	var result WebexMessagesReply
 	url := "/v1/messages?" + "roomId=" + roomId + "&max=" + fmt.Sprint(max)
 
@@ -196,11 +255,14 @@ func (wbx *WebexClient) doCall(req *http.Request, res interface{}) error {
 		return errors.New("unable to read the response body")
 	}
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		return fmt.Errorf("error processing this request %s\n API message %s", req.URL, body)
 
 	}
-	err = json.Unmarshal(body, &res)
+	if resp.StatusCode != http.StatusNoContent {
+		err = json.Unmarshal(body, &res)
+	}
+
 	if err != nil {
 		return errors.New("unable to serialize response body")
 	}

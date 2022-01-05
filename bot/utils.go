@@ -1,6 +1,10 @@
 package bot
 
 import (
+	"chatbot/webex"
+	"encoding/json"
+	"io/ioutil"
+	"net/http"
 	"regexp"
 	"strings"
 )
@@ -15,4 +19,15 @@ func splitEpCommand(s string) map[string]string {
 	cmd := make(map[string]string)
 	cmd["mac"] = w[1]
 	return cmd
+}
+
+func parseWebHook(wh *webex.WebexWebhook, r *http.Request) error {
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return err
+	}
+	if err = json.Unmarshal(body, &wh); err != nil {
+		return err
+	}
+	return nil
 }

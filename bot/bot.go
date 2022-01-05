@@ -5,7 +5,6 @@ import (
 	"chatbot/webex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 )
@@ -38,16 +37,22 @@ type Bot struct {
 	router   *http.ServeMux
 	url      string
 	commands map[string]Command
+	info     webex.WebexPeople
 }
 
 // Bot Generator
 func NewBot(wbx *webex.WebexClient, apic *apic.ApicClient, botUrl string) Bot {
 
+	info, err := wbx.GetBotDetails()
+	if err != nil {
+		log.Printf("could not retrieve the bot information. Err %s", err)
+	}
 	bot := Bot{
 		wbx:    wbx,
 		apic:   apic,
 		router: http.NewServeMux(),
 		url:    botUrl,
+		info:   info,
 	}
 
 	bot.commands = make(map[string]Command)
@@ -56,6 +61,7 @@ func NewBot(wbx *webex.WebexClient, apic *apic.ApicClient, botUrl string) Bot {
 	bot.addCommand("/help", "Chatbot Help", "\\/help", helpCommand(bot.commands))
 	bot.setupWebhook()
 	bot.routes()
+
 	return bot
 }
 
@@ -70,7 +76,7 @@ func endpointCommand(c *apic.ApicClient, m Message, wm WebexMessage) string {
 		res = "/n Sorry " + wm.sender + "... I could not find this endpoint **mac**: `" + splitEpCommand(m.cmd)["mac"] + "`"
 	}
 
-	return fmt.Sprintf("Hi %s 🤖 !%s", wm.sender, res)
+	return fmt.Sprintf("Hi %s 🤖 , here the details of ep `%s` %s", wm.sender, splitEpCommand(m.cmd)["mac"], res)
 }
 
 func cpuCommand(c *apic.ApicClient, m Message, wm WebexMessage) string {
@@ -92,43 +98,60 @@ func helpCommand(cmd map[string]Command) Callback {
 }
 
 // Endpoint Handlers
-func echoHandler(wbx *webex.WebexClient) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Printf("Hi!, I can access this client %s", wbx.GetBaseUrl())
-	})
+func testHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "I am alive!")
+	w.WriteHeader(200)
 }
-func testHandler(wbx *webex.WebexClient) http.HandlerFunc {
+func aboutMeHandler(wbx *webex.WebexClient) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		wbx.SendMessageToRoom("Did you call me?", "Y2lzY29zcGFyazovL3VzL1JPT00vZjRmZWZjZDAtNjI3NS0xMWVjLThiMTQtMDEyYWYxZGQ1M2Vl")
-	})
-}
-func webhookHandler(wbx *webex.WebexClient, ap *apic.ApicClient, cmd map[string]Command) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var payload webex.WebexWebhook
-		body, err := ioutil.ReadAll(r.Body)
+		info, err := wbx.GetBotDetails()
 		if err != nil {
-			log.Println("Error: ", err)
+			log.Printf("could not retrieve the bot information. Err %s", err)
+			w.WriteHeader(500)
+			return
 		}
-
-		if err = json.Unmarshal(body, &payload); err != nil {
-			log.Println("Error: ", err)
+		jp, err := json.Marshal(info)
+		if err != nil {
+			log.Printf("could not parse webex response. Error %s", err)
+			w.WriteHeader(500)
+			return
 		}
-		messages, _ := wbx.GetMessages(payload.Data.RoomId, 1)
-		botInfo, _ := wbx.GetBotDetails()
-		if messages[0].PersonId != botInfo.Id {
-			sender, err := wbx.GetPersonInfromation(messages[0].PersonId)
-			if err != nil {
-				sender.NickName = "Joe Doe"
-			}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(jp)
+		w.WriteHeader(200)
+	})
+}
+func webhookHandler(wbx *webex.WebexClient, ap *apic.ApicClient, cmd map[string]Command, b webex.WebexPeople) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Parse incoming webhook. From which room does it come  from?
+		wh := webex.WebexWebhook{}
+		if err := parseWebHook(&wh, r); err != nil {
+			log.Printf("failed to parse incoming webhook. Error %s", err)
+			return
+		}
+		// Retrieve the last message, it should not have been written by the bot
+		messages, err := wbx.GetMessages(wh.Data.RoomId, 1)
+		if err != nil {
+			log.Printf("failed trying to retreive the last message. Error %s", err)
+			return
+		}
+		// Is the message send from someone who is not the bot
+		if messages[0].PersonId != b.Id {
+			// Get sender personal information
+			sender, _ := wbx.GetPersonInfromation(messages[0].PersonId)
 			found := false
+			// Check which command was sent in the webex room
 			for _, element := range cmd {
 				if MatchCommand(messages[0].Text, element.regex) {
-					wbx.SendMessageToRoom(element.callback(ap, Message{cmd: messages[0].Text}, WebexMessage{sender: sender.NickName}), payload.Data.RoomId)
+					// Send message back the text is returned from the commandHandler
+					wbx.SendMessageToRoom(element.callback(ap, Message{cmd: messages[0].Text}, WebexMessage{sender: sender.NickName}), wh.Data.RoomId)
 					found = true
+					return
 				}
 			}
+			// If command sent does not match anything, send back the help menu
 			if !found {
-				wbx.SendMessageToRoom(cmd["/help"].callback(ap, Message{cmd: messages[0].Text}, WebexMessage{sender: sender.NickName}), payload.Data.RoomId)
+				wbx.SendMessageToRoom(cmd["/help"].callback(ap, Message{cmd: messages[0].Text}, WebexMessage{sender: sender.NickName}), wh.Data.RoomId)
 			}
 		}
 	})
@@ -136,13 +159,13 @@ func webhookHandler(wbx *webex.WebexClient, ap *apic.ApicClient, cmd map[string]
 
 // Bot Methods
 func (b *Bot) routes() {
-
-	b.router.HandleFunc("/echo", echoHandler(b.wbx))
-	b.router.HandleFunc("/test", testHandler(b.wbx))
-	b.router.HandleFunc("/webhook", webhookHandler(b.wbx, b.apic, b.commands))
+	// TODO: is this fine?
+	b.router.HandleFunc("/about", aboutMeHandler(b.wbx))
+	b.router.HandleFunc("/test", testHandler)
+	b.router.HandleFunc("/webhook", webhookHandler(b.wbx, b.apic, b.commands, b.info))
 }
 func (b *Bot) addCommand(cmd string, h string, re string, call Callback) {
-
+	// add item to the dispatch table
 	b.commands[cmd] = Command{
 		help:     h,
 		callback: call,
@@ -150,11 +173,20 @@ func (b *Bot) addCommand(cmd string, h string, re string, call Callback) {
 	}
 }
 func (b *Bot) setupWebhook() {
-	// TODO: Handle error updating and deleting existing webhook
-	b.wbx.CreateWebhook("the-webhook-1", b.url+"/webhook", "messages", "created")
+	// TODO: Delete exsiting webhooks with the same name
+
+	whs, _ := b.wbx.GetWebHooks()
+	for _, wh := range whs {
+		if wh.Name == b.info.DisplayName {
+			b.wbx.DeleteWebhook(b.info.DisplayName, b.url+"/webhook", wh.Id)
+		}
+	}
+	if err := b.wbx.CreateWebhook(b.info.DisplayName, b.url+"/webhook", "messages", "created"); err != nil {
+		log.Printf("Getting current webhooks")
+	}
 }
 func (b *Bot) Start(addr string) error {
-
+	// Start the http server
 	b.server = &http.Server{
 		Addr:    addr,
 		Handler: b.router,

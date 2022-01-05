@@ -18,10 +18,6 @@ type WebexRoomsReply struct {
 	Rooms []WebexRoom `json:"items"`
 }
 
-type WebexMessagesReply struct {
-	Messages []WebexMessageR `json:"items"`
-}
-
 type WebexRoom struct {
 	Id           string `json:"id"`
 	Title        string `json:"title"`
@@ -33,19 +29,23 @@ type WebexRoom struct {
 	OwnerId      string `json:"ownerId"`
 }
 
-type WebexMessageR struct {
-	Id          string `json:"id"`
-	RoomId      string `json:"roomId"`
-	RoomType    string `json:"roomType"`
-	Text        string `json:"text"`
-	PersonId    string `json:"personId"`
-	PersonEmail string `json:"personEmail"`
-	Created     string `json:"created"`
+type WebexMessagesReply struct {
+	Messages []WebexMessage `json:"items"`
 }
 
 type WebexMessage struct {
-	RoomId   string `json:"roomId"`
-	Markdown string `json:"markdown"`
+	Id          string `json:"id,omitempty"`
+	RoomId      string `json:"roomId,omitempty"`
+	RoomType    string `json:"roomType,omitempty"`
+	Text        string `json:"text,omitempty"`
+	PersonId    string `json:"personId,omitempty"`
+	PersonEmail string `json:"personEmail,omitempty"`
+	Created     string `json:"created,omitempty"`
+	Markdown    string `json:"markdown,omitempty"`
+}
+
+type WebexWebhookReply struct {
+	Webhooks []WebexWebhook `json:"items"`
 }
 
 type WebexWebhook struct {

@@ -67,7 +67,7 @@ func TestGetRoomsId(t *testing.T) {
 }
 
 func TestSendMessageToRoom(t *testing.T) {
-	messageM := WebexMessageR{Text: "First Message"}
+	messageM := WebexMessage{Text: "First Message"}
 
 	jsonBytes, _ := json.Marshal(messageM)
 
@@ -105,7 +105,7 @@ func TestSendMessageToRoomFail(t *testing.T) {
 }
 
 func TestGetMessages(t *testing.T) {
-	messageM := []WebexMessageR{{Text: "First Message"}}
+	messageM := []WebexMessage{{Text: "First Message"}}
 	meesageReplyM := WebexMessagesReply{
 		Messages: messageM,
 	}

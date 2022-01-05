@@ -14,10 +14,9 @@ import (
 	"time"
 )
 
-// ----------
+type Option func(*ApicClient)
 
 type ApicMoAttributes map[string]string
-type ApicMo map[string]interface{}
 
 type HttpClient interface {
 	Do(req *http.Request) (*http.Response, error)
@@ -30,7 +29,16 @@ type ApicClient struct {
 	tkn        string
 	baseURL    string
 }
-type Option func(*ApicClient)
+
+var (
+	Client HttpClient
+)
+
+func init() {
+	Client = &http.Client{
+		Timeout: 3 * time.Second,
+	}
+}
 
 func SetTimeout(t time.Duration) Option {
 	return func(client *ApicClient) {
@@ -40,18 +48,6 @@ func SetTimeout(t time.Duration) Option {
 		case *mocks.MockClient:
 			client.httpClient.(*mocks.MockClient).Timeout = t * time.Second
 		}
-	}
-}
-
-// --------- Client
-
-var (
-	Client HttpClient
-)
-
-func init() {
-	Client = &http.Client{
-		Timeout: 3 * time.Second,
 	}
 }
 
@@ -91,7 +87,6 @@ func (client *ApicClient) login() error {
 	r := getApicManagedObjects(result, "aaaLogin")
 	client.tkn = r[0]["token"]
 	return nil
-
 }
 
 func (client *ApicClient) GetEnpoint(mac string) []ApicMoAttributes {
@@ -138,7 +133,6 @@ func (client *ApicClient) makeCall(m string, url string, p io.Reader) (*http.Req
 	}
 
 	return req, nil
-
 }
 
 func (client *ApicClient) doCall(req *http.Request, res interface{}) error {

@@ -2,7 +2,7 @@ package apic
 
 import (
 	"bytes"
-	"chatbox/mocks"
+	"chatbot/mocks"
 	"io/ioutil"
 	"net/http"
 	"testing"

@@ -7,46 +7,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
 )
-
-type WebexRoomsReply struct {
-	Rooms []WebexRoom `json:"items"`
-}
-
-type WebexMessagesReply struct {
-	Messages []WebexMessageR `json:"items"`
-}
-
-type WebexRoom struct {
-	Id           string `json:"id"`
-	Title        string `json:"title"`
-	Type         string `json:"type"`
-	IsLocked     bool   `json:"isLocked"`
-	LastActivity string `json:"lastActivity"`
-	CreatorId    string `json:"creatorId"`
-	Created      string `json:"created"`
-	OwnerId      string `json:"ownerId"`
-}
-
-type WebexMessageR struct {
-	Id          string `json:"id"`
-	RoomId      string `json:"roomId"`
-	RoomType    string `json:"roomType"`
-	Text        string `json:"text"`
-	PersonId    string `json:"personId"`
-	PersonEmail string `json:"personEmail"`
-	Created     string `json:"created"`
-}
-
-type WebexMessage struct {
-	RoomId string `json:"roomId"`
-	Text   string `json:"text"`
-}
 
 // HttpClient interface type
 type HttpClient interface {
@@ -71,37 +36,163 @@ func NewWebexClient(tkn string) WebexClient {
 	return wbx
 }
 
-func (wbx *WebexClient) GetMessages(roomId string, max int) ([]WebexMessageR, error) {
+func (wbx *WebexClient) GetBaseUrl() string {
+	return wbx.baseURL
+}
+
+func (wbx *WebexClient) CreateWebhook(name, url, resource, event string) error {
+	req, err := wbx.makeCall(http.MethodPost, "/v1/webhooks", WebexWebhook{
+		Name:      name,
+		TargetUrl: url,
+		Resource:  resource,
+		Event:     event,
+	})
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return err
+	}
+
+	err = wbx.doCall(req, nil)
+
+	if err != nil {
+		log.Println("Error: ", err)
+		return err
+	}
+
+	return nil
+}
+
+func (wbx *WebexClient) GetWebHooks() ([]WebexWebhook, error) {
+
+	var result WebexWebhookReply
+
+	req, err := wbx.makeCall(http.MethodGet, "/v1/webhooks", nil)
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return []WebexWebhook{}, err
+	}
+
+	err = wbx.doCall(req, &result)
+
+	if err != nil {
+		log.Println("Error: ", err)
+		return []WebexWebhook{}, err
+	}
+
+	return result.Webhooks, nil
+}
+
+func (wbx *WebexClient) UpdateWebhook(name, tUrl, id string) error {
+	url := "/v1/webhooks/" + id
+	req, err := wbx.makeCall(http.MethodPut, url, WebexWebhook{
+		Name:      name,
+		TargetUrl: tUrl,
+	})
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return err
+	}
+
+	err = wbx.doCall(req, nil)
+
+	if err != nil {
+		log.Println("Error: ", err)
+		return err
+	}
+
+	return nil
+}
+
+func (wbx *WebexClient) DeleteWebhook(name, tUrl, id string) error {
+	url := "/v1/webhooks/" + id
+	req, err := wbx.makeCall(http.MethodDelete, url, nil)
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return err
+	}
+
+	err = wbx.doCall(req, nil)
+
+	if err != nil {
+		log.Println("Error: ", err)
+		return err
+	}
+
+	return nil
+}
+
+func (wbx *WebexClient) GetBotDetails() (WebexPeople, error) {
+
+	var result WebexPeople
+	url := "/v1/people/me"
+	req, err := wbx.makeCall(http.MethodGet, url, nil)
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return WebexPeople{}, err
+	}
+
+	err = wbx.doCall(req, &result)
+	if err != nil {
+		log.Println("Error: ", err)
+		return WebexPeople{}, err
+	}
+
+	return result, nil
+}
+
+func (wbx *WebexClient) GetPersonInfromation(id string) (WebexPeople, error) {
+
+	var result WebexPeopleReply
+	url := "/v1/people?" + "id=" + id
+	req, err := wbx.makeCall(http.MethodGet, url, nil)
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return WebexPeople{}, err
+	}
+
+	err = wbx.doCall(req, &result)
+	if err != nil {
+		log.Println("Error: ", err)
+		return WebexPeople{}, err
+	}
+	if len(result.People) != 1 {
+		return WebexPeople{}, errors.New("id %s belongs to two different persons ?!?")
+	}
+
+	return result.People[0], nil
+}
+
+func (wbx *WebexClient) GetMessages(roomId string, max int) ([]WebexMessage, error) {
 	var result WebexMessagesReply
 	url := "/v1/messages?" + "roomId=" + roomId + "&max=" + fmt.Sprint(max)
 
-	_, content, err := wbx.makeCall(http.MethodGet, url, nil)
+	req, err := wbx.makeCall(http.MethodGet, url, nil)
 	if err != nil {
 		fmt.Println("Error: ", err)
 		return result.Messages, err
 	}
 
-	err = json.Unmarshal(content, &result)
+	err = wbx.doCall(req, &result)
 	if err != nil {
 		log.Println("Error: ", err)
 		return result.Messages, err
 	}
 
 	return result.Messages, nil
-
 }
 
 func (wbx *WebexClient) GetRoomIds() ([]WebexRoom, error) {
 
 	var result WebexRoomsReply
 
-	_, content, err := wbx.makeCall(http.MethodGet, "/v1/rooms", nil)
+	req, err := wbx.makeCall(http.MethodGet, "/v1/rooms", nil)
 	if err != nil {
 		fmt.Println("Error: ", err)
 		return result.Rooms, err
 	}
 
-	err = json.Unmarshal(content, &result)
+	err = wbx.doCall(req, &result)
+
 	if err != nil {
 		log.Println("Error: ", err)
 		return result.Rooms, err
@@ -111,50 +202,69 @@ func (wbx *WebexClient) GetRoomIds() ([]WebexRoom, error) {
 }
 
 func (wbx *WebexClient) SendMessageToRoom(m string, roomId string) error {
-	var payload WebexMessage
-	payload.RoomId = roomId
-	payload.Text = m
 
-	jsonValue, err := json.Marshal(payload)
+	req, err := wbx.makeCall(http.MethodPost, "/v1/messages", WebexMessage{
+		RoomId:   roomId,
+		Markdown: m,
+	})
 	if err != nil {
 		fmt.Println("Error: ", err)
 		return err
 	}
 
-	code, _, err := wbx.makeCall(http.MethodPost, "/v1/messages", bytes.NewBuffer(jsonValue))
+	err = wbx.doCall(req, nil)
+
 	if err != nil {
-		fmt.Println("Error: ", err)
+		log.Println("Error: ", err)
 		return err
 	}
-	if code == 400 {
-		return fmt.Errorf("unknown room id %s", roomId)
-	}
+
 	return nil
 }
 
-func (wbx *WebexClient) makeCall(m string, url string, p io.Reader) (int, []byte, error) {
-	req, err := http.NewRequest(m, wbx.baseURL+url, p)
+func (wbx *WebexClient) makeCall(m string, url string, p interface{}) (*http.Request, error) {
+
+	jp, err := json.Marshal(p)
+
 	if err != nil {
-		return 0, nil, errors.New("unable to create a new HTTP request")
+		return nil, errors.New("unable to marshal the paylaod")
+	}
+	req, err := http.NewRequest(m, wbx.baseURL+url, bytes.NewBuffer(jp))
+	if err != nil {
+		return nil, errors.New("unable to create a new HTTP request")
 	}
 
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", "Bearer "+wbx.tkn)
 
+	return req, nil
+}
+
+func (wbx *WebexClient) doCall(req *http.Request, res interface{}) error {
+
 	resp, err := wbx.httpClient.Do(req)
 	if err != nil {
-		return 0, nil, errors.New("unable to send the HTTP request")
+		return errors.New("unable to send the HTTP request")
 	}
 
-	// Why defer ?
 	defer resp.Body.Close()
-	print(resp.StatusCode)
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
-		return 0, nil, errors.New("unable to read the response body")
+		return errors.New("unable to read the response body")
 	}
-	return resp.StatusCode, body, nil
 
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("error processing this request %s\n API message %s", req.URL, body)
+
+	}
+	if resp.StatusCode != http.StatusNoContent {
+		err = json.Unmarshal(body, &res)
+	}
+
+	if err != nil {
+		return errors.New("unable to serialize response body")
+	}
+	return nil
 }

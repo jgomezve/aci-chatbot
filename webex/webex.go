@@ -13,65 +13,6 @@ import (
 	"time"
 )
 
-type WebexRoomsReply struct {
-	Rooms []WebexRoom `json:"items"`
-}
-
-type WebexMessagesReply struct {
-	Messages []WebexMessageR `json:"items"`
-}
-
-type WebexRoom struct {
-	Id           string `json:"id"`
-	Title        string `json:"title"`
-	Type         string `json:"type"`
-	IsLocked     bool   `json:"isLocked"`
-	LastActivity string `json:"lastActivity"`
-	CreatorId    string `json:"creatorId"`
-	Created      string `json:"created"`
-	OwnerId      string `json:"ownerId"`
-}
-
-type WebexMessageR struct {
-	Id          string `json:"id"`
-	RoomId      string `json:"roomId"`
-	RoomType    string `json:"roomType"`
-	Text        string `json:"text"`
-	PersonId    string `json:"personId"`
-	PersonEmail string `json:"personEmail"`
-	Created     string `json:"created"`
-}
-
-type WebexMessage struct {
-	RoomId   string `json:"roomId"`
-	Markdown string `json:"markdown"`
-}
-
-type WebexWebhook struct {
-	Id        string            `json:"id,omitempty"`
-	Name      string            `json:"name,omitempty"`
-	TargetUrl string            `json:"targetUrl,omitempty"`
-	Resource  string            `json:"resource,omitempty"`
-	Event     string            `json:"event,omitempty"`
-	OrgId     string            `json:"orgId,omitempty"`
-	CreatedBy string            `json:"createdBy,omitempty"`
-	AppId     string            `json:"appId,omitempty"`
-	OwnerId   string            `json:"OwnerId,omitempty"`
-	Status    string            `json:"status,omitempty"`
-	Created   string            `json:"created,omitempty"`
-	ActorId   string            `json:"actorId,omitempty"`
-	Data      *WebexWebhookData `json:"data,omitempty"`
-}
-
-type WebexWebhookData struct {
-	Id          string `json:"id,omitempty"`
-	RoomId      string `json:"roomId,omitempty"`
-	RoomType    string `json:"roomType,omitempty"`
-	PersonId    string `json:"personId,omitempty"`
-	PersonEmail string `json:"personEmail,omitempty"`
-	Created     string `json:"created,omitempty"`
-}
-
 // HttpClient interface type
 type HttpClient interface {
 	Do(req *http.Request) (*http.Response, error)
@@ -119,6 +60,47 @@ func (wbx *WebexClient) CreateWebhook(name, url, resource, event string) error {
 	}
 
 	return nil
+}
+
+func (wbx *WebexClient) GetBotDetails() (WebexPeople, error) {
+
+	var result WebexPeople
+	url := "/v1/people/me"
+	req, err := wbx.makeCall(http.MethodGet, url, nil)
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return WebexPeople{}, err
+	}
+
+	err = wbx.doCall(req, &result)
+	if err != nil {
+		log.Println("Error: ", err)
+		return WebexPeople{}, err
+	}
+
+	return result, nil
+}
+
+func (wbx *WebexClient) GetPersonInfromation(id string) (WebexPeople, error) {
+
+	var result WebexPeopleReply
+	url := "/v1/people?" + "id=" + id
+	req, err := wbx.makeCall(http.MethodGet, url, nil)
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return WebexPeople{}, err
+	}
+
+	err = wbx.doCall(req, &result)
+	if err != nil {
+		log.Println("Error: ", err)
+		return WebexPeople{}, err
+	}
+	if len(result.People) != 1 {
+		return WebexPeople{}, errors.New("id %s belongs to two different persons ?!?")
+	}
+
+	return result.People[0], nil
 }
 
 func (wbx *WebexClient) GetMessages(roomId string, max int) ([]WebexMessageR, error) {
@@ -198,7 +180,6 @@ func (wbx *WebexClient) makeCall(m string, url string, p interface{}) (*http.Req
 	req.Header.Add("Authorization", "Bearer "+wbx.tkn)
 
 	return req, nil
-
 }
 
 func (wbx *WebexClient) doCall(req *http.Request, res interface{}) error {
@@ -219,10 +200,9 @@ func (wbx *WebexClient) doCall(req *http.Request, res interface{}) error {
 		return fmt.Errorf("error processing this request %s\n API message %s", req.URL, body)
 
 	}
-
 	err = json.Unmarshal(body, &res)
 	if err != nil {
-		return errors.New("unable to read the response body")
+		return errors.New("unable to serialize response body")
 	}
 	return nil
 }

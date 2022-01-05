@@ -11,11 +11,23 @@ import (
 )
 
 // Callback helpers
-type Callback func(a *apic.ApicClient) string
+type Callback func(a *apic.ApicClient, m Message, wm WebexMessage) string
+
+// struc to represent the incomming Webex message
+
+type WebexMessage struct {
+	sender string
+}
+
+// struct to represent the CLI command
+type Message struct {
+	cmd string
+}
 
 type Command struct {
 	help     string
 	callback Callback
+	regex    string
 }
 
 // Bot definition
@@ -39,25 +51,39 @@ func NewBot(wbx *webex.WebexClient, apic *apic.ApicClient, botUrl string) Bot {
 	}
 
 	bot.commands = make(map[string]Command)
-	bot.addCommand("/cpu", "APIC CPU Information", cpuCommand)
-	bot.addCommand("/help", "Chatbot Help", helpCommand(bot.commands))
+	bot.addCommand("/cpu", "Get APIC CPU Information", "\\/cpu", cpuCommand)
+	bot.addCommand("/ep", "Get APIC Endpoint Information. Usage /ep <ep_mac>", "\\/ep ([[:xdigit:]]{2}[:.-]?){5}[[:xdigit:]]{2}$", endpointCommand)
+	bot.addCommand("/help", "Chatbot Help", "\\/help", helpCommand(bot.commands))
 	bot.setupWebhook()
 	bot.routes()
 	return bot
 }
 
 // Command Handlers
-func cpuCommand(c *apic.ApicClient) string {
+func endpointCommand(c *apic.ApicClient, m Message, wm WebexMessage) string {
+
+	res := ""
+	for _, item := range c.GetEnpoint(splitEpCommand(m.cmd)["mac"]) {
+		res = res + "\n- **Bridge Domain**: `" + item["bdDn"] + "`"
+	}
+	if res == "" {
+		res = "/n Sorry " + wm.sender + "... I could not find this endpoint **mac**: `" + splitEpCommand(m.cmd)["mac"] + "`"
+	}
+
+	return fmt.Sprintf("Hi %s 🤖 !%s", wm.sender, res)
+}
+
+func cpuCommand(c *apic.ApicClient, m Message, wm WebexMessage) string {
 	res := ""
 	for _, item := range c.GetProcEntity() {
-		res = res + "\n- **Proc** " + item.Dn + "\t💻 **CPU**: " + item.CpuPct + "\t💾 **Memory**: " + item.MemFree
+		res = res + "\n- **Proc**: `" + item["dn"] + "`\t💻 **CPU**: " + item["cpuPct"] + "\t💾 **Memory**: " + item["memFree"]
 	}
-	return fmt.Sprintf("Hi 🤖 !%s", res)
+	return fmt.Sprintf("Hi %s 🤖 !%s", wm.sender, res)
 }
 
 func helpCommand(cmd map[string]Command) Callback {
-	return func(a *apic.ApicClient) string {
-		help := "Hello Sir, How can I help you?\n\n"
+	return func(a *apic.ApicClient, m Message, wm WebexMessage) string {
+		help := fmt.Sprintf("Hello %s, How can I help you?\n\n", wm.sender)
 		for key, value := range cmd {
 			help = help + "\t" + key + "->" + value.help + "\n"
 		}
@@ -76,7 +102,7 @@ func testHandler(wbx *webex.WebexClient) http.HandlerFunc {
 		wbx.SendMessageToRoom("Did you call me?", "Y2lzY29zcGFyazovL3VzL1JPT00vZjRmZWZjZDAtNjI3NS0xMWVjLThiMTQtMDEyYWYxZGQ1M2Vl")
 	})
 }
-func webhookHandler(wbx *webex.WebexClient, a *apic.ApicClient, cmd map[string]Command) http.HandlerFunc {
+func webhookHandler(wbx *webex.WebexClient, ap *apic.ApicClient, cmd map[string]Command) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var payload webex.WebexWebhook
 		body, err := ioutil.ReadAll(r.Body)
@@ -88,11 +114,21 @@ func webhookHandler(wbx *webex.WebexClient, a *apic.ApicClient, cmd map[string]C
 			log.Println("Error: ", err)
 		}
 		messages, _ := wbx.GetMessages(payload.Data.RoomId, 1)
-		if messages[0].PersonEmail != "cx-germany-bot@webex.bot" {
-			for key, element := range cmd {
-				if messages[0].Text == key {
-					wbx.SendMessageToRoom(element.callback(a), payload.Data.RoomId)
+		botInfo, _ := wbx.GetBotDetails()
+		if messages[0].PersonId != botInfo.Id {
+			sender, err := wbx.GetPersonInfromation(messages[0].PersonId)
+			if err != nil {
+				sender.NickName = "Joe Doe"
+			}
+			found := false
+			for _, element := range cmd {
+				if MatchCommand(messages[0].Text, element.regex) {
+					wbx.SendMessageToRoom(element.callback(ap, Message{cmd: messages[0].Text}, WebexMessage{sender: sender.NickName}), payload.Data.RoomId)
+					found = true
 				}
+			}
+			if !found {
+				wbx.SendMessageToRoom(cmd["/help"].callback(ap, Message{cmd: messages[0].Text}, WebexMessage{sender: sender.NickName}), payload.Data.RoomId)
 			}
 		}
 	})
@@ -105,11 +141,12 @@ func (b *Bot) routes() {
 	b.router.HandleFunc("/test", testHandler(b.wbx))
 	b.router.HandleFunc("/webhook", webhookHandler(b.wbx, b.apic, b.commands))
 }
-func (b *Bot) addCommand(cmd string, h string, call Callback) {
+func (b *Bot) addCommand(cmd string, h string, re string, call Callback) {
 
 	b.commands[cmd] = Command{
 		help:     h,
 		callback: call,
+		regex:    re,
 	}
 }
 func (b *Bot) setupWebhook() {

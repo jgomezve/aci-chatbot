@@ -15,6 +15,10 @@ import (
 )
 
 // ----------
+
+type ApicMoAttributes map[string]string
+type ApicMo map[string]interface{}
+
 type HttpClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
@@ -84,49 +88,41 @@ func (client *ApicClient) login() error {
 		return err
 	}
 
-	proc := result["imdata"].([]interface{})
-
-	var res []aaaLogin
-
-	for _, item := range proc {
-		var res2 aaaLogin
-		jsonString, _ := json.Marshal(item.(map[string]interface{})["aaaLogin"].(map[string]interface{})["attributes"])
-		json.Unmarshal(jsonString, &res2)
-		res = append(res, res2)
-	}
-
-	client.tkn = res[0].Token
+	r := getApicManagedObjects(result, "aaaLogin")
+	client.tkn = r[0]["token"]
 	return nil
 
 }
 
-func (client *ApicClient) GetProcEntity() []procEntity {
+func (client *ApicClient) GetEnpoint(mac string) []ApicMoAttributes {
 	var result map[string]interface{}
-	req, err := client.makeCall(http.MethodGet, "/api/node/class/procEntity.json", nil)
+	url := "/api/node/class/fvCEp.json?query-target-filter=eq(fvCEp.mac,\"" + mac + "\")"
+	req, err := client.makeCall(http.MethodGet, url, nil)
 
 	if err != nil {
-		return []procEntity{}
+		return nil
 	}
 
 	if err = client.doCall(req, &result); err != nil {
 		log.Println("Error: ", err)
-		return []procEntity{}
+		return nil
+	}
+	return getApicManagedObjects(result, "fvCEp")
+}
+
+func (client *ApicClient) GetProcEntity() []ApicMoAttributes {
+	var result map[string]interface{}
+	req, err := client.makeCall(http.MethodGet, "/api/node/class/procEntity.json", nil)
+
+	if err != nil {
+		return nil
 	}
 
-	proc := result["imdata"].([]interface{})
-
-	var res []procEntity
-
-	for _, item := range proc {
-		var res2 procEntity
-		jsonString, _ := json.Marshal(item.(map[string]interface{})["procEntity"].(map[string]interface{})["attributes"])
-		json.Unmarshal(jsonString, &res2)
-		res = append(res, res2)
+	if err = client.doCall(req, &result); err != nil {
+		log.Println("Error: ", err)
+		return nil
 	}
-
-	return res
-	//return result.Imdata[0].ProcEntity
-
+	return getApicManagedObjects(result, "procEntity")
 }
 
 func (client *ApicClient) makeCall(m string, url string, p io.Reader) (*http.Request, error) {

@@ -110,6 +110,7 @@ func (wbx *WebexClient) CreateWebhook(name, url, resource, event string) error {
 		fmt.Println("Error: ", err)
 		return err
 	}
+
 	err = wbx.doCall(req, nil)
 
 	if err != nil {
@@ -161,7 +162,10 @@ func (wbx *WebexClient) GetRoomIds() ([]WebexRoom, error) {
 
 func (wbx *WebexClient) SendMessageToRoom(m string, roomId string) error {
 
-	req, err := wbx.makeCall(http.MethodPost, "/v1/messages", WebexMessage{RoomId: roomId, Text: m})
+	req, err := wbx.makeCall(http.MethodPost, "/v1/messages", WebexMessage{
+		RoomId: roomId,
+		Text:   m,
+	})
 	if err != nil {
 		fmt.Println("Error: ", err)
 		return err
@@ -180,6 +184,8 @@ func (wbx *WebexClient) SendMessageToRoom(m string, roomId string) error {
 func (wbx *WebexClient) makeCall(m string, url string, p interface{}) (*http.Request, error) {
 
 	jp, err := json.Marshal(p)
+	fmt.Printf("-- %s ---", jp)
+
 	if err != nil {
 		return nil, errors.New("unable to marshal the paylaod")
 	}
@@ -192,11 +198,13 @@ func (wbx *WebexClient) makeCall(m string, url string, p interface{}) (*http.Req
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", "Bearer "+wbx.tkn)
 
+	fmt.Printf("-- %s ---", req.Body)
 	return req, nil
 
 }
 
 func (wbx *WebexClient) doCall(req *http.Request, res interface{}) error {
+
 	resp, err := wbx.httpClient.Do(req)
 	if err != nil {
 		return errors.New("unable to send the HTTP request")
@@ -211,6 +219,7 @@ func (wbx *WebexClient) doCall(req *http.Request, res interface{}) error {
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("error processing this request %s\n API message %s", req.URL, body)
+
 	}
 
 	err = json.Unmarshal(body, &res)

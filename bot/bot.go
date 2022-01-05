@@ -62,11 +62,6 @@ func helpCommand(cmd map[string]Command) Callback {
 	}
 }
 
-// func helpCommand(c *apic.ApicClient) string {
-// 	s := "Hello Sir! How can I help you?"
-// 	return s
-// }
-
 // Endpoint Handlers
 func echoHandler(wbx *webex.WebexClient) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -85,8 +80,8 @@ func webhookHandler(wbx *webex.WebexClient, a *apic.ApicClient, cmd map[string]C
 		if err != nil {
 			log.Println("Error: ", err)
 		}
-		err = json.Unmarshal(body, &payload)
-		if err != nil {
+
+		if err = json.Unmarshal(body, &payload); err != nil {
 			log.Println("Error: ", err)
 		}
 		messages, _ := wbx.GetMessages(payload.Data.RoomId, 1)

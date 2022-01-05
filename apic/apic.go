@@ -8,44 +8,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"strings"
 	"time"
 )
-
-// ---------- JSON Structs
-type ApicLoginReply struct {
-	TotalCount string               `json:"totalCount"`
-	Imdata     []ApicAaaLoginImData `json:"imdata"`
-}
-type ApicProcEntityReply struct {
-	TotalCount string                       `json:"totalCount"`
-	Imdata     []ApicProcEnitityLoginImData `json:"imdata"`
-}
-
-type ApicProcEnitityLoginImData struct {
-	ProcEntity ApicProcEntity `json:"procEntity"`
-}
-type ApicAaaLoginImData struct {
-	AaaLogin ApicAaaLogin `json:"aaaLogin"`
-}
-type ApicAaaLogin struct {
-	Attributes ApicLoginAttributes `json:"attributes"`
-	Children   interface{}         `json:"children"`
-}
-type ApicProcEntity struct {
-	Attributes ApicProcEntityAttributes `json:"attributes"`
-	Children   interface{}              `json:"children"`
-}
-
-type ApicProcEntityAttributes struct {
-	CpuPct  string `json:"cpuPct"`
-	MemFree string `json:"memFree"`
-}
-
-type ApicLoginAttributes struct {
-	Token string `json:"token"`
-}
 
 // ----------
 type HttpClient interface {
@@ -107,17 +74,13 @@ func (client *ApicClient) login() error {
 
 	var result ApicLoginReply
 	loginPayload := fmt.Sprintf(`{"aaaUser":{"attributes":{"name":"%s","pwd":"%s"}}}`, client.usr, client.pwd)
-	status, content, err := client.makeCall(http.MethodPost, "/api/aaaLogin.json", strings.NewReader(loginPayload))
+	req, err := client.makeCall(http.MethodPost, "/api/aaaLogin.json", strings.NewReader(loginPayload))
 	if err != nil {
 		return err
 	}
-	if status != 200 {
-		return errors.New("authentication failed")
 
-	}
-
-	err = json.Unmarshal(content, &result)
-	if err != nil {
+	if err = client.doCall(req, &result); err != nil {
+		log.Println("Error: ", err)
 		return err
 	}
 	client.tkn = result.Imdata[0].AaaLogin.Attributes.Token
@@ -127,29 +90,25 @@ func (client *ApicClient) login() error {
 
 func (client *ApicClient) GetProcEntity() interface{} {
 	var result ApicProcEntityReply
-	status, content, err := client.makeCall(http.MethodGet, "/api/node/class/procEntity.json", nil)
+	req, err := client.makeCall(http.MethodGet, "/api/node/class/procEntity.json", nil)
 
 	if err != nil {
 		return nil
 	}
-	if status != 200 {
-		return nil
 
+	if err = client.doCall(req, &result); err != nil {
+		log.Println("Error: ", err)
+		return err
 	}
-
-	err = json.Unmarshal(content, &result)
-	if err != nil {
-		return nil
-	}
-
+	fmt.Print(result)
 	return result.Imdata[0].ProcEntity
 
 }
 
-func (client *ApicClient) makeCall(m string, url string, p io.Reader) (int, []byte, error) {
+func (client *ApicClient) makeCall(m string, url string, p io.Reader) (*http.Request, error) {
 	req, err := http.NewRequest(m, client.baseURL+url, p)
 	if err != nil {
-		return 0, nil, errors.New("unable to create a new HTTP request")
+		return nil, errors.New("unable to create a new HTTP request")
 	}
 
 	req.Header.Add("Accept", "application/json")
@@ -158,9 +117,14 @@ func (client *ApicClient) makeCall(m string, url string, p io.Reader) (int, []by
 		req.Header.Set("Cookie", "APIC-cookie="+client.tkn)
 	}
 
+	return req, nil
+
+}
+
+func (client *ApicClient) doCall(req *http.Request, res interface{}) error {
 	resp, err := client.httpClient.Do(req)
 	if err != nil {
-		return 0, nil, errors.New("unable to send the HTTP request")
+		return errors.New("unable to send the HTTP request")
 	}
 
 	// Why defer ?
@@ -168,8 +132,15 @@ func (client *ApicClient) makeCall(m string, url string, p io.Reader) (int, []by
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
-		return 0, nil, errors.New("unable to read the response body")
+		return errors.New("unable to read the response body")
 	}
-	return resp.StatusCode, body, nil
 
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("error processing this request %s\n API message %s", req.URL, body)
+	}
+
+	if err = json.Unmarshal(body, &res); err != nil {
+		return errors.New("unable to read the response body")
+	}
+	return nil
 }

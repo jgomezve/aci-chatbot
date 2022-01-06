@@ -29,9 +29,19 @@ type Command struct {
 	regex    string
 }
 
+type webexInterface interface {
+	SendMessageToRoom(m string, roomId string) error
+	GetBotDetails() (webex.WebexPeople, error)
+	GetWebHooks() ([]webex.WebexWebhook, error)
+	DeleteWebhook(name, tUrl, id string) error
+	CreateWebhook(name, url, resource, event string) error
+	GetPersonInfromation(id string) (webex.WebexPeople, error)
+	GetMessages(roomId string, max int) ([]webex.WebexMessage, error)
+}
+
 // Bot definition
 type Bot struct {
-	wbx      *webex.WebexClient
+	wbx      webexInterface
 	apic     *apic.ApicClient
 	server   *http.Server
 	router   *http.ServeMux
@@ -41,7 +51,7 @@ type Bot struct {
 }
 
 // Bot Generator
-func NewBot(wbx *webex.WebexClient, apic *apic.ApicClient, botUrl string) Bot {
+func NewBot(wbx webexInterface, apic *apic.ApicClient, botUrl string) Bot {
 
 	info, err := wbx.GetBotDetails()
 	if err != nil {
@@ -100,39 +110,41 @@ func helpCommand(cmd map[string]Command) Callback {
 // Endpoint Handlers
 func testHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "I am alive!")
-	w.WriteHeader(200)
+	w.WriteHeader(http.StatusOK)
 }
-func aboutMeHandler(wbx *webex.WebexClient) http.HandlerFunc {
+func aboutMeHandler(wbx webexInterface) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		info, err := wbx.GetBotDetails()
 		if err != nil {
 			log.Printf("could not retrieve the bot information. Err %s", err)
-			w.WriteHeader(500)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		jp, err := json.Marshal(info)
 		if err != nil {
 			log.Printf("could not parse webex response. Error %s", err)
-			w.WriteHeader(500)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(jp)
-		w.WriteHeader(200)
+		w.WriteHeader(http.StatusOK)
 	})
 }
-func webhookHandler(wbx *webex.WebexClient, ap *apic.ApicClient, cmd map[string]Command, b webex.WebexPeople) http.HandlerFunc {
+func webhookHandler(wbx webexInterface, ap *apic.ApicClient, cmd map[string]Command, b webex.WebexPeople) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Parse incoming webhook. From which room does it come  from?
 		wh := webex.WebexWebhook{}
 		if err := parseWebHook(&wh, r); err != nil {
 			log.Printf("failed to parse incoming webhook. Error %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		// Retrieve the last message, it should not have been written by the bot
 		messages, err := wbx.GetMessages(wh.Data.RoomId, 1)
 		if err != nil {
 			log.Printf("failed trying to retreive the last message. Error %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		// Is the message send from someone who is not the bot
@@ -146,12 +158,14 @@ func webhookHandler(wbx *webex.WebexClient, ap *apic.ApicClient, cmd map[string]
 					// Send message back the text is returned from the commandHandler
 					wbx.SendMessageToRoom(element.callback(ap, Message{cmd: messages[0].Text}, WebexMessage{sender: sender.NickName}), wh.Data.RoomId)
 					found = true
+					w.WriteHeader(http.StatusOK)
 					return
 				}
 			}
 			// If command sent does not match anything, send back the help menu
 			if !found {
 				wbx.SendMessageToRoom(cmd["/help"].callback(ap, Message{cmd: messages[0].Text}, WebexMessage{sender: sender.NickName}), wh.Data.RoomId)
+				w.WriteHeader(http.StatusOK)
 			}
 		}
 	})

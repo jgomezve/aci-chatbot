@@ -6,7 +6,6 @@ import (
 )
 
 type MockClient struct {
-	DoFunc  func(req *http.Request) (*http.Response, error)
 	Timeout time.Duration
 }
 

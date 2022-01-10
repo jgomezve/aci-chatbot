@@ -12,14 +12,21 @@ type WebexClientMocks struct {
 
 var (
 	WebexMockClient WebexClientMocks
+	GetBotDetailsF  = func() (webex.WebexPeople, error) {
+		return webex.WebexPeople{
+			Id:          "ABC123",
+			Emails:      []string{"test@bot.com"},
+			DisplayName: "Test Bot",
+			NickName:    "Test",
+			FirstName:   "Test",
+			LastName:    "Bot",
+			UserName:    "testbot",
+		}, nil
+	}
 )
 
 func (wbx *WebexClientMocks) GetBotDetails() (webex.WebexPeople, error) {
-
-	return webex.WebexPeople{
-			NickName: "TestBot",
-		},
-		nil
+	return GetBotDetailsF()
 }
 
 func (wbx *WebexClientMocks) SendMessageToRoom(m string, roomId string) error {
@@ -33,7 +40,7 @@ func (wbx *WebexClientMocks) DeleteWebhook(name, tUrl, id string) error {
 }
 
 func (wbx *WebexClientMocks) CreateWebhook(name, url, resource, event string) error {
-	fmt.Printf("Creatiing Webhook")
+	fmt.Printf("Creating Webhook")
 	return nil
 }
 

@@ -3,7 +3,7 @@ PKG_LIST := $(shell go list ./... | grep -v /vendor/)
 GO_FILES := $(shell find . -name '*.go' | grep -v /vendor/ )
 
 fmt: ## Format the files
-	@gofmt -d ${GO_FILES}
+	.ci/fmt.sh
 
 test: ## Run unittests
 	@go test -v -short ${PKG_LIST}

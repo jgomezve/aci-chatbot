@@ -191,6 +191,6 @@ func (b *Bot) Start(addr string) error {
 		Addr:    addr,
 		Handler: b.router,
 	}
-
+	log.Println("Starting Server")
 	return b.server.ListenAndServe()
 }

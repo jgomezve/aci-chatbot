@@ -19,4 +19,4 @@ dep: ## Get the dependencies
 	@go get -u github.com/golang/lint/golint
 
 build: dep ## Build the binary file
-	@go build -i -v $(PKG)
+	@go build -i -v $(PROJECT_NAME)

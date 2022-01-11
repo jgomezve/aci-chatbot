@@ -1,8 +1,8 @@
 package bot
 
 import (
-	"chatbot/apic"
-	"chatbot/webex"
+	"aci-chatbot/apic"
+	"aci-chatbot/webex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -191,6 +191,6 @@ func (b *Bot) Start(addr string) error {
 		Addr:    addr,
 		Handler: b.router,
 	}
-
+	log.Println("Starting Server")
 	return b.server.ListenAndServe()
 }

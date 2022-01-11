@@ -1,8 +1,8 @@
 package apic
 
 import (
+	"aci-chatbot/mocks"
 	"bytes"
-	"chatbot/mocks"
 	"io/ioutil"
 	"net/http"
 	"testing"

@@ -1,7 +1,7 @@
 package apic
 
 import (
-	"chatbot/mocks"
+	"aci-chatbot/mocks"
 	"crypto/tls"
 	"encoding/json"
 	"errors"

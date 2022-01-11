@@ -3,3 +3,4 @@ env.sh
 .vscode
 coverage.html
 chatbot
+dev.env

@@ -1,3 +1,6 @@
 .DS_Store
-*.sh
+env.sh
 .vscode
+coverage.html
+chatbot
+dev.env

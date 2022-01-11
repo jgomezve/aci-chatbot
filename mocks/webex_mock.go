@@ -1,7 +1,7 @@
 package mocks
 
 import (
-	"chatbot/webex"
+	"aci-chatbot/webex"
 	"fmt"
 )
 

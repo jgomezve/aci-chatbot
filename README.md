@@ -2,6 +2,10 @@
 
 A [Go](https://go.dev/)-based Bot which reads information from the APIC and displays it in a 1:1 Webex Room
 
+## Requirements
+
+* Golang 1.15+
+
 ## How to use it?
 
 * Set the environmental variables in `.env`:

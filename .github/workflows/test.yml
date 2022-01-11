@@ -17,15 +17,13 @@ jobs:
           go-version: '1.15'
         id: go
 
-      - name: Test Webex Client
+      - name: Go Format
         run: |
-          cd webex
-          go test -v -cover
+          make fmt
 
-      - name: Test APIC Client
+      - name: Unit Test
         run: |
-          cd apic
-          go test -v -cover
+          make test
 
       - name: Webex Notification
         if: always()

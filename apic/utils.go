@@ -10,5 +10,6 @@ func getApicManagedObjects(p map[string]interface{}, c string) []ApicMoAttribute
 		}
 		mos = append(mos, att)
 	}
+
 	return mos
 }

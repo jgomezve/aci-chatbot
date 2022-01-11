@@ -1,4 +1,5 @@
 .DS_Store
-main.go
-*.sh
+env.sh
 .vscode
+coverage.html
+chatbot

@@ -7,4 +7,4 @@
 
 # Run container 
 
-            docker run --env-file .env -it -p 8080/7001 jgomezve/chatbot:0.1
+            docker run --env-file .env -it -p 8080/7001 jgomezve/aci-chatbot:0.1

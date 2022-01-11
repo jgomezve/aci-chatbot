@@ -1,7 +1,7 @@
 package bot
 
 import (
-	"chatbot/webex"
+	"aci-chatbot/webex"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"

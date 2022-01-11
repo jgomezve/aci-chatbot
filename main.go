@@ -1,9 +1,9 @@
 package main
 
 import (
-	"chatbot/apic"
-	"chatbot/bot"
-	"chatbot/webex"
+	"aci-chatbot/apic"
+	"aci-chatbot/bot"
+	"aci-chatbot/webex"
 	"errors"
 	"os"
 )

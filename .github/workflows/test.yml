@@ -25,15 +25,6 @@ jobs:
         run: |
           make fmt
 
-      - name: Unit Test
-        run: |
-          make test
-
-      - name: Unit Test
-        run: |
-          echo ${{ github.actor }}
-          echo ${{ github.repository }}
-
       - name: Log into registry ${{ env.REGISTRY }}
         if: github.event_name != 'pull_request'
         uses: docker/login-action@28218f9b04b4f3f62068d7b6ce6ca5b26e35336c
@@ -48,7 +39,7 @@ jobs:
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
-          tags: jgomezve/aci-chatbot:latest
+          tags: ${{ github.repository }}:latest
   
       - name: Webex Notification
         if: always()

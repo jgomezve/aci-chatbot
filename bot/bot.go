@@ -1,8 +1,8 @@
 package bot
 
 import (
-	"chatbot/apic"
-	"chatbot/webex"
+	"aci-chatbot/apic"
+	"aci-chatbot/webex"
 	"encoding/json"
 	"fmt"
 	"log"

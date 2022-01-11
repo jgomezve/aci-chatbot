@@ -6,7 +6,7 @@ fmt: ## Format the files
 	@gofmt -d ${GO_FILES}
 
 test: ## Run unittests
-	@go test -short ${PKG_LIST}
+	@go test -v -short ${PKG_LIST}
 
 coverage: ## Generate global code coverage report
 	.ci/coverage.sh;

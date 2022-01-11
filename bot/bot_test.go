@@ -1,8 +1,8 @@
 package bot
 
 import (
-	"chatbot/mocks"
-	"chatbot/webex"
+	"aci-chatbot/mocks"
+	"aci-chatbot/webex"
 	"encoding/json"
 	"errors"
 	"net/http"

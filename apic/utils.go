@@ -1,6 +1,6 @@
 package apic
 
-func    getApicManagedObjects(p map[string]interface{}, c string) []ApicMoAttributes {
+func getApicManagedObjects(p map[string]interface{}, c string) []ApicMoAttributes {
 	mos := []ApicMoAttributes{}
 
 	for _, item := range p["imdata"].([]interface{}) {

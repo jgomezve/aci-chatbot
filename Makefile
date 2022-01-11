@@ -16,7 +16,6 @@ coverhtml: ## Generate global code coverage report in HTML
 
 dep: ## Get the dependencies
 	@go get -v -d ./...
-	@go get -u github.com/golang/lint/golint
 
 build: dep ## Build the binary file
-	@go build -i -v $(PROJECT_NAME)
+	@go build -o $(PROJECT_NAME)

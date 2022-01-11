@@ -1,5 +1,5 @@
 .DS_Store
-main.go
 env.sh
 .vscode
 coverage.html
+chatbot

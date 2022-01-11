@@ -1,6 +1,5 @@
 PROJECT_NAME := "aci-chatbot"
 PKG_LIST := $(shell go list ./... | grep -v /vendor/)
-GO_FILES := $(shell find . -name '*.go' | grep -v /vendor/ )
 
 fmt: ## Format the files
 	.ci/fmt.sh;

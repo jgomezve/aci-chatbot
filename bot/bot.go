@@ -29,19 +29,9 @@ type Command struct {
 	regex    string
 }
 
-type webexInterface interface {
-	SendMessageToRoom(m string, roomId string) error
-	GetBotDetails() (webex.WebexPeople, error)
-	GetWebHooks() ([]webex.WebexWebhook, error)
-	DeleteWebhook(name, tUrl, id string) error
-	CreateWebhook(name, url, resource, event string) error
-	GetPersonInfromation(id string) (webex.WebexPeople, error)
-	GetMessages(roomId string, max int) ([]webex.WebexMessage, error)
-}
-
 // Bot definition
 type Bot struct {
-	wbx      webexInterface
+	wbx      webex.WebexInterface
 	apic     *apic.ApicClient
 	server   *http.Server
 	router   *http.ServeMux
@@ -51,7 +41,7 @@ type Bot struct {
 }
 
 // Bot Generator
-func NewBot(wbx webexInterface, apic *apic.ApicClient, botUrl string) Bot {
+func NewBot(wbx webex.WebexInterface, apic *apic.ApicClient, botUrl string) Bot {
 
 	info, err := wbx.GetBotDetails()
 	if err != nil {
@@ -76,6 +66,8 @@ func NewBot(wbx webexInterface, apic *apic.ApicClient, botUrl string) Bot {
 }
 
 // Command Handlers
+
+// /ep <ep_mac> handler
 func endpointCommand(c *apic.ApicClient, m Message, wm WebexMessage) string {
 
 	res := ""
@@ -89,6 +81,7 @@ func endpointCommand(c *apic.ApicClient, m Message, wm WebexMessage) string {
 	return fmt.Sprintf("Hi %s 🤖 , here the details of ep `%s` %s", wm.sender, splitEpCommand(m.cmd)["mac"], res)
 }
 
+// /cpu handler
 func cpuCommand(c *apic.ApicClient, m Message, wm WebexMessage) string {
 	res := ""
 	for _, item := range c.GetProcEntity() {
@@ -97,6 +90,7 @@ func cpuCommand(c *apic.ApicClient, m Message, wm WebexMessage) string {
 	return fmt.Sprintf("Hi %s 🤖 !%s", wm.sender, res)
 }
 
+// /help handler
 func helpCommand(cmd map[string]Command) Callback {
 	return func(a *apic.ApicClient, m Message, wm WebexMessage) string {
 		help := fmt.Sprintf("Hello %s, How can I help you?\n\n", wm.sender)
@@ -112,7 +106,7 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "I am alive!")
 	w.WriteHeader(http.StatusOK)
 }
-func aboutMeHandler(wbx webexInterface) http.HandlerFunc {
+func aboutMeHandler(wbx webex.WebexInterface) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		info, err := wbx.GetBotDetails()
 		if err != nil {
@@ -131,7 +125,7 @@ func aboutMeHandler(wbx webexInterface) http.HandlerFunc {
 		w.WriteHeader(http.StatusOK)
 	})
 }
-func webhookHandler(wbx webexInterface, ap *apic.ApicClient, cmd map[string]Command, b webex.WebexPeople) http.HandlerFunc {
+func webhookHandler(wbx webex.WebexInterface, ap *apic.ApicClient, cmd map[string]Command, b webex.WebexPeople) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Parse incoming webhook. From which room does it come  from?
 		wh := webex.WebexWebhook{}

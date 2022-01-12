@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"aci-chatbot/mocks"
 	"aci-chatbot/webex"
 	"encoding/json"
 	"errors"
@@ -12,8 +11,8 @@ import (
 
 func TestTestHandler(t *testing.T) {
 
-	wbxM := mocks.WebexMockClient
-	mocks.GetBotDetailsF = func() (webex.WebexPeople, error) {
+	wbxM := webex.WebexMockClient
+	webex.GetBotDetailsF = func() (webex.WebexPeople, error) {
 		return webex.WebexPeople{
 			NickName: "Test",
 		}, nil
@@ -35,14 +34,14 @@ func TestTestHandler(t *testing.T) {
 
 func TestAboutMeHandler(t *testing.T) {
 
-	wbxM := mocks.WebexMockClient
+	wbxM := webex.WebexMockClient
 	b := NewBot(&wbxM, nil, "http://test_bot.com")
 	request, _ := http.NewRequest(http.MethodGet, "/about", nil)
 	response := httptest.NewRecorder()
 
 	b.router.ServeHTTP(response, request)
 
-	exp, _ := mocks.GetBotDetailsF()
+	exp, _ := webex.GetBotDetailsF()
 	expB, _ := json.Marshal(exp)
 
 	if response.Code != http.StatusOK {
@@ -56,10 +55,10 @@ func TestAboutMeHandler(t *testing.T) {
 
 func TestAboutMeHandlerError(t *testing.T) {
 
-	wbxM := mocks.WebexMockClient
+	wbxM := webex.WebexMockClient
 	b := NewBot(&wbxM, nil, "http://test_bot.com")
 	// Overwrite mock default behaviour. Provoke an error
-	mocks.GetBotDetailsF = func() (webex.WebexPeople, error) {
+	webex.GetBotDetailsF = func() (webex.WebexPeople, error) {
 		return webex.WebexPeople{}, errors.New("Webex Timeout")
 	}
 	request, _ := http.NewRequest(http.MethodGet, "/about", nil)

@@ -1,7 +1,6 @@
-package mocks
+package webex
 
 import (
-	"aci-chatbot/webex"
 	"fmt"
 )
 
@@ -12,8 +11,8 @@ type WebexClientMocks struct {
 
 var (
 	WebexMockClient WebexClientMocks
-	GetBotDetailsF  = func() (webex.WebexPeople, error) {
-		return webex.WebexPeople{
+	GetBotDetailsF  = func() (WebexPeople, error) {
+		return WebexPeople{
 			Id:          "ABC123",
 			Emails:      []string{"test@bot.com"},
 			DisplayName: "Test Bot",
@@ -25,7 +24,7 @@ var (
 	}
 )
 
-func (wbx *WebexClientMocks) GetBotDetails() (webex.WebexPeople, error) {
+func (wbx *WebexClientMocks) GetBotDetails() (WebexPeople, error) {
 	return GetBotDetailsF()
 }
 
@@ -44,15 +43,15 @@ func (wbx *WebexClientMocks) CreateWebhook(name, url, resource, event string) er
 	return nil
 }
 
-func (wbx *WebexClientMocks) GetWebHooks() ([]webex.WebexWebhook, error) {
+func (wbx *WebexClientMocks) GetWebHooks() ([]WebexWebhook, error) {
 	fmt.Printf("Getting Webhook")
-	return []webex.WebexWebhook{{Name: "Test"}}, nil
+	return []WebexWebhook{{Name: "Test"}}, nil
 }
 
-func (wbx *WebexClientMocks) GetPersonInfromation(id string) (webex.WebexPeople, error) {
-	return webex.WebexPeople{DisplayName: "Test"}, nil
+func (wbx *WebexClientMocks) GetPersonInfromation(id string) (WebexPeople, error) {
+	return WebexPeople{DisplayName: "Test"}, nil
 }
 
-func (wbx *WebexClientMocks) GetMessages(roomId string, max int) ([]webex.WebexMessage, error) {
-	return []webex.WebexMessage{{Text: "Test", PersonId: "Test"}}, nil
+func (wbx *WebexClientMocks) GetMessages(roomId string, max int) ([]WebexMessage, error) {
+	return []WebexMessage{{Text: "Test", PersonId: "Test"}}, nil
 }

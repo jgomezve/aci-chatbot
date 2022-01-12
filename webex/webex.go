@@ -13,9 +13,20 @@ import (
 	"time"
 )
 
-// HttpClient interface type
+// HttpClient interface type.
 type HttpClient interface {
 	Do(req *http.Request) (*http.Response, error)
+}
+
+//
+type WebexInterface interface {
+	SendMessageToRoom(m string, roomId string) error
+	GetBotDetails() (WebexPeople, error)
+	GetWebHooks() ([]WebexWebhook, error)
+	DeleteWebhook(name, tUrl, id string) error
+	CreateWebhook(name, url, resource, event string) error
+	GetPersonInfromation(id string) (WebexPeople, error)
+	GetMessages(roomId string, max int) ([]WebexMessage, error)
 }
 
 type WebexClient struct {

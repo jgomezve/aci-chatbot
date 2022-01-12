@@ -41,11 +41,12 @@ type Bot struct {
 }
 
 // Bot Generator
-func NewBot(wbx webex.WebexInterface, apic *apic.ApicClient, botUrl string) Bot {
+func NewBot(wbx webex.WebexInterface, apic *apic.ApicClient, botUrl string) (Bot, error) {
 
 	info, err := wbx.GetBotDetails()
 	if err != nil {
 		log.Printf("could not retrieve the bot information. Err %s", err)
+		return Bot{}, err
 	}
 	bot := Bot{
 		wbx:    wbx,
@@ -56,13 +57,20 @@ func NewBot(wbx webex.WebexInterface, apic *apic.ApicClient, botUrl string) Bot 
 	}
 
 	bot.commands = make(map[string]Command)
+	log.Println("Adding `/cpu` command")
 	bot.addCommand("/cpu", "Get APIC CPU Information", "\\/cpu", cpuCommand)
+	log.Println("Adding `/ep` command")
 	bot.addCommand("/ep", "Get APIC Endpoint Information. Usage /ep <ep_mac>", "\\/ep ([[:xdigit:]]{2}[:.-]?){5}[[:xdigit:]]{2}$", endpointCommand)
+	log.Println("Adding `/help` command")
 	bot.addCommand("/help", "Chatbot Help", "\\/help", helpCommand(bot.commands))
-	bot.setupWebhook()
+	log.Println("Setting up Webex Webhook")
+	if err = bot.setupWebhook(); err != nil {
+		log.Printf("could not setup the webhook. Err %s", err)
+		return Bot{}, err
+	}
 	bot.routes()
 
-	return bot
+	return bot, nil
 }
 
 // Command Handlers
@@ -180,18 +188,27 @@ func (b *Bot) addCommand(cmd string, h string, re string, call Callback) {
 		regex:    re,
 	}
 }
-func (b *Bot) setupWebhook() {
+func (b *Bot) setupWebhook() error {
 	// TODO: Delete exsiting webhooks with the same name
 
 	whs, _ := b.wbx.GetWebHooks()
 	for _, wh := range whs {
 		if wh.Name == b.info.DisplayName {
-			b.wbx.DeleteWebhook(b.info.DisplayName, b.url+"/webhook", wh.Id)
+			log.Printf("Bot already has a Webhook with name %s\n", b.info.DisplayName)
+			err := b.wbx.DeleteWebhook(b.info.DisplayName, b.url+"/webhook", wh.Id)
+			log.Printf("Deleting Webhooks %s\n", b.info.DisplayName)
+			if err != nil {
+				log.Printf("could not delete existing webhook. Err %s", err)
+				return err
+			}
 		}
 	}
+	log.Printf("Creating brand new Webhook Name: %s - URL: %s\n", b.info.DisplayName, b.url)
 	if err := b.wbx.CreateWebhook(b.info.DisplayName, b.url+"/webhook", "messages", "created"); err != nil {
-		log.Printf("Getting current webhooks")
+		log.Printf("could not create brand new webhook. Err %s", err)
+		return err
 	}
+	return nil
 }
 func (b *Bot) Start(addr string) error {
 	// Start the http server
@@ -199,6 +216,6 @@ func (b *Bot) Start(addr string) error {
 		Addr:    addr,
 		Handler: b.router,
 	}
-	log.Println("Starting Server")
+	log.Printf("Starting Server on address %s\n", addr)
 	return b.server.ListenAndServe()
 }

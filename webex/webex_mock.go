@@ -24,6 +24,7 @@ var (
 
 // Mock functions default values
 func (wbx *WebexClientMocks) SetDefaultFunctions() {
+	LastMsgSent = ""
 	GetBotDetailsF = func() (WebexPeople, error) {
 		return WebexPeople{
 			Id:          "ABC123",

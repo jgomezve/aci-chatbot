@@ -11,7 +11,7 @@ type ApicClientMocks struct {
 var (
 	ApicMockClient ApicClientMocks
 	loginF         func() error
-	GetProcEntityF func() []ApicMoAttributes
+	GetProcEntityF func() ([]ApicMoAttributes, error)
 	GetEnpointF    func(mac string) []ApicMoAttributes
 )
 
@@ -22,11 +22,11 @@ func (ac *ApicClientMocks) SetDefaultFunctions() {
 		return nil
 	}
 
-	GetProcEntityF = func() []ApicMoAttributes {
+	GetProcEntityF = func() ([]ApicMoAttributes, error) {
 		procs := []ApicMoAttributes{}
 		procs = append(procs, ApicMoAttributes{"dn": "abc", "cpuPct": "50", "memFree": "0"})
 		procs = append(procs, ApicMoAttributes{"dn": "def", "cpuPct": "40", "memFree": "10"})
-		return procs
+		return procs, nil
 	}
 
 	GetEnpointF = func(mac string) []ApicMoAttributes {
@@ -39,7 +39,7 @@ func (ac *ApicClientMocks) login() error {
 	return loginF()
 }
 
-func (ac *ApicClientMocks) GetProcEntity() []ApicMoAttributes {
+func (ac *ApicClientMocks) GetProcEntity() ([]ApicMoAttributes, error) {
 	return GetProcEntityF()
 }
 

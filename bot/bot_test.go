@@ -251,4 +251,32 @@ func TestWebHookHanlderCpuCommand(t *testing.T) {
 		expectedMessage := "Hi  🤖 !\n- **Proc**: `abc`\t💻 **CPU**: 50\t💾 **Memory**: 0\n- **Proc**: `def`\t💻 **CPU**: 40\t💾 **Memory**: 10"
 		equals(t, webex.LastMsgSent, expectedMessage)
 	})
+	// Test Unreachable APIC
+	t.Run("Error APIC unreachable", func(t *testing.T) {
+		wmc := webex.WebexMockClient
+		wmc.SetDefaultFunctions()
+		amc := apic.ApicMockClient
+		amc.SetDefaultFunctions()
+		webex.GetMessagesF = func(roomId string, max int) ([]webex.WebexMessage, error) {
+			return []webex.WebexMessage{{Text: "/cpu"}}, nil
+		}
+		b, _ := NewBot(&wmc, &amc, "http://test_bot.com")
+		reqB := webex.WebexWebhook{
+			Name: "test-bot",
+			Data: &webex.WebexWebhookData{
+				RoomId: "AbC13",
+			},
+		}
+		apic.GetProcEntityF = func() ([]apic.ApicMoAttributes, error) {
+			return []apic.ApicMoAttributes{{}}, errors.New("Generic APIC Error")
+		}
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 !. I could not reach the APIC... Are there any issues?"
+		equals(t, webex.LastMsgSent, expectedMessage)
+	})
 }

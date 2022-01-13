@@ -91,7 +91,14 @@ func endpointCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 // /cpu handler
 func cpuCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 	res := ""
-	for _, item := range c.GetProcEntity() {
+	cpu, err := c.GetProcEntity()
+
+	if err != nil {
+		log.Printf("Error while connecting to the Apic. Err: %s", err)
+		return fmt.Sprintf("Hi %s 🤖 !. I could not reach the APIC... Are there any issues?", wm.sender)
+
+	}
+	for _, item := range cpu {
 		res = res + "\n- **Proc**: `" + item["dn"] + "`\t💻 **CPU**: " + item["cpuPct"] + "\t💾 **Memory**: " + item["memFree"]
 	}
 	return fmt.Sprintf("Hi %s 🤖 !%s", wm.sender, res)

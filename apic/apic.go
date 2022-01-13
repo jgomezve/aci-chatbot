@@ -25,7 +25,7 @@ type HttpClient interface {
 type ApicInterface interface {
 	login() error
 	GetEnpoint(mac string) []ApicMoAttributes
-	GetProcEntity() []ApicMoAttributes
+	GetProcEntity() ([]ApicMoAttributes, error)
 }
 
 type ApicClient struct {
@@ -111,19 +111,19 @@ func (client *ApicClient) GetEnpoint(mac string) []ApicMoAttributes {
 	return getApicManagedObjects(result, "fvCEp")
 }
 
-func (client *ApicClient) GetProcEntity() []ApicMoAttributes {
+func (client *ApicClient) GetProcEntity() ([]ApicMoAttributes, error) {
 	var result map[string]interface{}
 	req, err := client.makeCall(http.MethodGet, "/api/node/class/procEntity.json", nil)
 
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	if err = client.doCall(req, &result); err != nil {
 		log.Println("Error: ", err)
-		return nil
+		return nil, err
 	}
-	return getApicManagedObjects(result, "procEntity")
+	return getApicManagedObjects(result, "procEntity"), nil
 }
 
 func (client *ApicClient) makeCall(m string, url string, p io.Reader) (*http.Request, error) {

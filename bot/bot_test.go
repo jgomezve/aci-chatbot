@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"aci-chatbot/apic"
 	"aci-chatbot/webex"
 	"bytes"
 	"encoding/json"
@@ -155,10 +156,12 @@ func TestWebHookHanlder(t *testing.T) {
 	t.Run("Test /cpu command", func(t *testing.T) {
 		wmc := webex.WebexMockClient
 		wmc.SetDefaultFunctions()
+		amc := apic.ApicMockClient
+		amc.SetDefaultFunctions()
 		webex.GetMessagesF = func(roomId string, max int) ([]webex.WebexMessage, error) {
 			return []webex.WebexMessage{{Text: "/cpu"}}, nil
 		}
-		b, _ := NewBot(&wmc, nil, "http://test_bot.com")
+		b, _ := NewBot(&wmc, &amc, "http://test_bot.com")
 		reqB := webex.WebexWebhook{
 			Data: &webex.WebexWebhookData{
 				RoomId: "AbC13",
@@ -170,5 +173,7 @@ func TestWebHookHanlder(t *testing.T) {
 
 		b.router.ServeHTTP(response, request)
 		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 !\n- **Proc**: `abc`\t💻 **CPU**: 50\t💾 **Memory**: 0\n- **Proc**: `def`\t💻 **CPU**: 40\t💾 **Memory**: 10"
+		equals(t, webex.LastMsgSent, expectedMessage)
 	})
 }

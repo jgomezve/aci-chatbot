@@ -10,7 +10,7 @@ import (
 )
 
 // Callback helpers
-type Callback func(a *apic.ApicClient, m Message, wm WebexMessage) string
+type Callback func(a apic.ApicInterface, m Message, wm WebexMessage) string
 
 // struc to represent the incomming Webex message
 
@@ -32,7 +32,7 @@ type Command struct {
 // Bot definition
 type Bot struct {
 	wbx      webex.WebexInterface
-	apic     *apic.ApicClient
+	apic     apic.ApicInterface
 	server   *http.Server
 	router   *http.ServeMux
 	url      string
@@ -41,7 +41,7 @@ type Bot struct {
 }
 
 // Bot Generator
-func NewBot(wbx webex.WebexInterface, apic *apic.ApicClient, botUrl string) (Bot, error) {
+func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (Bot, error) {
 
 	info, err := wbx.GetBotDetails()
 	if err != nil {
@@ -75,7 +75,7 @@ func NewBot(wbx webex.WebexInterface, apic *apic.ApicClient, botUrl string) (Bot
 
 // Command Handlers
 // /ep <ep_mac> handler
-func endpointCommand(c *apic.ApicClient, m Message, wm WebexMessage) string {
+func endpointCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 
 	res := ""
 	for _, item := range c.GetEnpoint(splitEpCommand(m.cmd)["mac"]) {
@@ -89,7 +89,7 @@ func endpointCommand(c *apic.ApicClient, m Message, wm WebexMessage) string {
 }
 
 // /cpu handler
-func cpuCommand(c *apic.ApicClient, m Message, wm WebexMessage) string {
+func cpuCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 	res := ""
 	for _, item := range c.GetProcEntity() {
 		res = res + "\n- **Proc**: `" + item["dn"] + "`\t💻 **CPU**: " + item["cpuPct"] + "\t💾 **Memory**: " + item["memFree"]
@@ -99,7 +99,7 @@ func cpuCommand(c *apic.ApicClient, m Message, wm WebexMessage) string {
 
 // /help handler
 func helpCommand(cmd map[string]Command) Callback {
-	return func(a *apic.ApicClient, m Message, wm WebexMessage) string {
+	return func(a apic.ApicInterface, m Message, wm WebexMessage) string {
 		help := fmt.Sprintf("Hello %s, How can I help you?\n\n", wm.sender)
 		for key, value := range cmd {
 			help = help + "\t" + key + "->" + value.help + "\n"
@@ -138,7 +138,7 @@ func aboutMeHandler(wbx webex.WebexInterface) http.HandlerFunc {
 
 // /webhook handler
 // TODO: Separate by method (GET, POST, PUT)
-func webhookHandler(wbx webex.WebexInterface, ap *apic.ApicClient, cmd map[string]Command, b webex.WebexPeople) http.HandlerFunc {
+func webhookHandler(wbx webex.WebexInterface, ap apic.ApicInterface, cmd map[string]Command, b webex.WebexPeople) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Parse incoming webhook. From which room does it come  from?
 		wh := webex.WebexWebhook{}

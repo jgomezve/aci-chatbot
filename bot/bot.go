@@ -140,6 +140,7 @@ func aboutMeHandler(wbx webex.WebexInterface) http.HandlerFunc {
 // TODO: Separate by method (GET, POST, PUT)
 func webhookHandler(wbx webex.WebexInterface, ap apic.ApicInterface, cmd map[string]Command, b webex.WebexPeople) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Receiving %s on /webhook URI", r.Method)
 		// Parse incoming webhook. From which room does it come  from?
 		wh := webex.WebexWebhook{}
 		if err := parseWebHook(&wh, r); err != nil {
@@ -173,8 +174,11 @@ func webhookHandler(wbx webex.WebexInterface, ap apic.ApicInterface, cmd map[str
 			if !found {
 				wbx.SendMessageToRoom(cmd["/help"].callback(ap, Message{cmd: messages[0].Text}, WebexMessage{sender: sender.NickName}), wh.Data.RoomId)
 				w.WriteHeader(http.StatusOK)
+				return
 			}
 		}
+		// To differentiate Webhooks triggered from the Bot
+		w.WriteHeader(http.StatusAccepted)
 	})
 }
 

@@ -151,9 +151,83 @@ func TestAboutMeHandler(t *testing.T) {
 
 }
 
-func TestWebHookHanlder(t *testing.T) {
-	// HTTP request to the /test URI without errors
-	t.Run("Test /cpu command", func(t *testing.T) {
+// Test Webhook Handler
+func TestWebHookHanlderGeneral(t *testing.T) {
+
+	// Invalid Payload in the POST Request on /webhok
+	t.Run("Invalid Webhook Payload", func(t *testing.T) {
+		wmc := webex.WebexMockClient
+		wmc.SetDefaultFunctions()
+		amc := apic.ApicMockClient
+		amc.SetDefaultFunctions()
+		b, _ := NewBot(&wmc, &amc, "http://test_bot.com")
+		// Make it fail by sending another payload
+		reqB := webex.WebexMessage{
+			Markdown: "DummyTest",
+		}
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusInternalServerError)
+		equals(t, webex.LastMsgSent, "")
+	})
+	// Error Reading Message from Webex
+	t.Run("Error Webex Message", func(t *testing.T) {
+		wmc := webex.WebexMockClient
+		wmc.SetDefaultFunctions()
+		amc := apic.ApicMockClient
+		amc.SetDefaultFunctions()
+		webex.GetMessagesF = func(roomId string, max int) ([]webex.WebexMessage, error) {
+			return []webex.WebexMessage{{}}, errors.New("Generic Webex error")
+		}
+		b, _ := NewBot(&wmc, &amc, "http://test_bot.com")
+		reqB := webex.WebexWebhook{
+			Name: "test-bot",
+			Data: &webex.WebexWebhookData{
+				RoomId: "AbC13",
+			},
+		}
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusInternalServerError)
+		equals(t, webex.LastMsgSent, "")
+	})
+	// Message which triggered the Webhook came from the bot itself
+	t.Run("Message from Bot", func(t *testing.T) {
+		wmc := webex.WebexMockClient
+		wmc.SetDefaultFunctions()
+		amc := apic.ApicMockClient
+		amc.SetDefaultFunctions()
+		webex.GetMessagesF = func(roomId string, max int) ([]webex.WebexMessage, error) {
+			return []webex.WebexMessage{{Text: "/cpu", PersonId: "BotId"}}, nil
+		}
+		webex.GetBotDetailsF = func() (webex.WebexPeople, error) {
+			return webex.WebexPeople{Id: "BotId"}, nil
+		}
+		b, _ := NewBot(&wmc, &amc, "http://test_bot.com")
+		reqB := webex.WebexWebhook{
+			Name: "test-bot",
+			Data: &webex.WebexWebhookData{
+				RoomId: "AbC13",
+			},
+		}
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusAccepted)
+
+	})
+}
+
+func TestWebHookHanlderCpuCommand(t *testing.T) {
+	// Test a /CPU command/message without errors
+	t.Run("Errorless /cpu command", func(t *testing.T) {
 		wmc := webex.WebexMockClient
 		wmc.SetDefaultFunctions()
 		amc := apic.ApicMockClient
@@ -163,6 +237,7 @@ func TestWebHookHanlder(t *testing.T) {
 		}
 		b, _ := NewBot(&wmc, &amc, "http://test_bot.com")
 		reqB := webex.WebexWebhook{
+			Name: "test-bot",
 			Data: &webex.WebexWebhookData{
 				RoomId: "AbC13",
 			},

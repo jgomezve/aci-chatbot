@@ -22,6 +22,12 @@ type HttpClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
+type ApicInterface interface {
+	login() error
+	GetEnpoint(mac string) []ApicMoAttributes
+	GetProcEntity() []ApicMoAttributes
+}
+
 type ApicClient struct {
 	httpClient HttpClient
 	usr        string

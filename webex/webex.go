@@ -18,7 +18,7 @@ type HttpClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-//
+// TODO: Change name
 type WebexInterface interface {
 	SendMessageToRoom(m string, roomId string) error
 	GetBotDetails() (WebexPeople, error)

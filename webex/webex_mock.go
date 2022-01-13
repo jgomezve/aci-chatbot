@@ -19,6 +19,7 @@ var (
 	GetMessagesF          func(roomId string, max int) ([]WebexMessage, error)
 	SendMessageToRoomF    func(m string, roomId string) error
 	GetPersonInformationF func(id string) (WebexPeople, error)
+	LastMsgSent           string
 )
 
 // Mock functions default values
@@ -58,7 +59,8 @@ func (wbx *WebexClientMocks) SetDefaultFunctions() {
 	}
 
 	SendMessageToRoomF = func(m, roomId string) error {
-		log.Println("Mock: Sending Message to Webex Room")
+		log.Printf("Mock: Sending Message to Webex Room %s\n%s\n", roomId, m)
+		LastMsgSent = m
 		return nil
 	}
 

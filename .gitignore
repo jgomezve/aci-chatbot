@@ -1,6 +1,6 @@
 .DS_Store
 env.sh
 .vscode
-coverage.html
+*.html
 chatbot
 dev.env

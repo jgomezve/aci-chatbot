@@ -74,7 +74,6 @@ func NewBot(wbx webex.WebexInterface, apic *apic.ApicClient, botUrl string) (Bot
 }
 
 // Command Handlers
-
 // /ep <ep_mac> handler
 func endpointCommand(c *apic.ApicClient, m Message, wm WebexMessage) string {
 
@@ -110,10 +109,13 @@ func helpCommand(cmd map[string]Command) Callback {
 }
 
 // Endpoint Handlers
+// /test handler
 func testHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "I am alive!")
 	w.WriteHeader(http.StatusOK)
 }
+
+// /about handler
 func aboutMeHandler(wbx webex.WebexInterface) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		info, err := wbx.GetBotDetails()
@@ -133,6 +135,9 @@ func aboutMeHandler(wbx webex.WebexInterface) http.HandlerFunc {
 		w.WriteHeader(http.StatusOK)
 	})
 }
+
+// /webhook handler
+// TODO: Separate by method (GET, POST, PUT)
 func webhookHandler(wbx webex.WebexInterface, ap *apic.ApicClient, cmd map[string]Command, b webex.WebexPeople) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Parse incoming webhook. From which room does it come  from?
@@ -152,7 +157,7 @@ func webhookHandler(wbx webex.WebexInterface, ap *apic.ApicClient, cmd map[strin
 		// Is the message send from someone who is not the bot
 		if messages[0].PersonId != b.Id {
 			// Get sender personal information
-			sender, _ := wbx.GetPersonInfromation(messages[0].PersonId)
+			sender, _ := wbx.GetPersonInformation(messages[0].PersonId)
 			found := false
 			// Check which command was sent in the webex room
 			for _, element := range cmd {

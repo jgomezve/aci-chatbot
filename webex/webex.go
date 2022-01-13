@@ -25,7 +25,7 @@ type WebexInterface interface {
 	GetWebHooks() ([]WebexWebhook, error)
 	DeleteWebhook(name, tUrl, id string) error
 	CreateWebhook(name, url, resource, event string) error
-	GetPersonInfromation(id string) (WebexPeople, error)
+	GetPersonInformation(id string) (WebexPeople, error)
 	GetMessages(roomId string, max int) ([]WebexMessage, error)
 }
 
@@ -151,7 +151,7 @@ func (wbx *WebexClient) GetBotDetails() (WebexPeople, error) {
 	return result, nil
 }
 
-func (wbx *WebexClient) GetPersonInfromation(id string) (WebexPeople, error) {
+func (wbx *WebexClient) GetPersonInformation(id string) (WebexPeople, error) {
 
 	var result WebexPeopleReply
 	url := "/v1/people?" + "id=" + id

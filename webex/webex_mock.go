@@ -1,7 +1,6 @@
 package webex
 
 import (
-	"fmt"
 	"log"
 )
 
@@ -10,12 +9,16 @@ type WebexClientMocks struct {
 	baseURL string
 }
 
+// TODO: check if this approach is valid
 var (
-	WebexMockClient WebexClientMocks
-	GetBotDetailsF  func() (WebexPeople, error)
-	GetWebHooksF    func() ([]WebexWebhook, error)
-	CreateWebhookF  func(name, url, resource, event string) error
-	DeleteWebhookF  func(name, tUrl, id string) error
+	WebexMockClient       WebexClientMocks
+	GetBotDetailsF        func() (WebexPeople, error)
+	GetWebHooksF          func() ([]WebexWebhook, error)
+	CreateWebhookF        func(name, url, resource, event string) error
+	DeleteWebhookF        func(name, tUrl, id string) error
+	GetMessagesF          func(roomId string, max int) ([]WebexMessage, error)
+	SendMessageToRoomF    func(m string, roomId string) error
+	GetPersonInformationF func(id string) (WebexPeople, error)
 )
 
 // Mock functions default values
@@ -48,6 +51,20 @@ func (wbx *WebexClientMocks) SetDefaultFunctions() {
 		log.Println("Mock: Deleting Webhook")
 		return nil
 	}
+
+	GetMessagesF = func(roomId string, max int) ([]WebexMessage, error) {
+		log.Println("Mock: Getting Webex Room Message")
+		return []WebexMessage{{Text: "This is a mocked webex test", PersonId: "ARandomId"}}, nil
+	}
+
+	SendMessageToRoomF = func(m, roomId string) error {
+		log.Println("Mock: Sending Message to Webex Room")
+		return nil
+	}
+
+	GetPersonInformationF = func(id string) (WebexPeople, error) {
+		return WebexPeople{DisplayName: "ARandomPerson"}, nil
+	}
 }
 
 func (wbx *WebexClientMocks) GetBotDetails() (WebexPeople, error) {
@@ -55,8 +72,7 @@ func (wbx *WebexClientMocks) GetBotDetails() (WebexPeople, error) {
 }
 
 func (wbx *WebexClientMocks) SendMessageToRoom(m string, roomId string) error {
-	fmt.Printf("Sending message")
-	return nil
+	return SendMessageToRoomF(m, roomId)
 }
 
 func (wbx *WebexClientMocks) DeleteWebhook(name, tUrl, id string) error {
@@ -71,10 +87,10 @@ func (wbx *WebexClientMocks) GetWebHooks() ([]WebexWebhook, error) {
 	return GetWebHooksF()
 }
 
-func (wbx *WebexClientMocks) GetPersonInfromation(id string) (WebexPeople, error) {
-	return WebexPeople{DisplayName: "Test"}, nil
+func (wbx *WebexClientMocks) GetPersonInformation(id string) (WebexPeople, error) {
+	return GetPersonInformationF(id)
 }
 
 func (wbx *WebexClientMocks) GetMessages(roomId string, max int) ([]WebexMessage, error) {
-	return []WebexMessage{{Text: "Test", PersonId: "Test"}}, nil
+	return GetMessagesF(roomId, max)
 }

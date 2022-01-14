@@ -29,8 +29,8 @@ jobs:
         run: |
           make test
 
-      - name: Log into registry ${{ env.REGISTRY }}
-        if: github.event_name != 'pull_request' && github.ref == 'ref/head/master'
+      - name: Log into registry
+        if: github.ref == 'refs/heads/main'
         uses: docker/login-action@28218f9b04b4f3f62068d7b6ce6ca5b26e35336c
         with:
           registry: ${{ env.REGISTRY }}
@@ -38,7 +38,7 @@ jobs:
           password: ${{ secrets.DOCKER_HUB_PASSWORD }}
 
       - name: Build and push Docker image
-        if: github.ref == 'ref/head/main'
+        if: github.ref == 'refs/heads/main'
         id: build-and-push
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:

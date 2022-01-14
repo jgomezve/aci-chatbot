@@ -18,3 +18,6 @@ dep: ## Get the dependencies
 
 build: dep ## Build the binary file
 	@go build -o $(PROJECT_NAME)
+
+run: #Build and run the binary
+	@go run main.go

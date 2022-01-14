@@ -3,7 +3,9 @@ package bot
 import (
 	"aci-chatbot/webex"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -23,11 +25,15 @@ func splitEpCommand(s string) map[string]string {
 
 func parseWebHook(wh *webex.WebexWebhook, r *http.Request) error {
 	body, err := ioutil.ReadAll(r.Body)
+	log.Printf("Parsing Webhook Payload\n")
 	if err != nil {
 		return err
 	}
 	if err = json.Unmarshal(body, &wh); err != nil {
 		return err
+	}
+	if wh.Name == "" {
+		return errors.New("unknown webhok payload")
 	}
 	return nil
 }

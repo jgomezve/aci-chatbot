@@ -13,9 +13,20 @@ import (
 	"time"
 )
 
-// HttpClient interface type
+// HttpClient interface type.
 type HttpClient interface {
 	Do(req *http.Request) (*http.Response, error)
+}
+
+// TODO: Change name
+type WebexInterface interface {
+	SendMessageToRoom(m string, roomId string) error
+	GetBotDetails() (WebexPeople, error)
+	GetWebHooks() ([]WebexWebhook, error)
+	DeleteWebhook(name, tUrl, id string) error
+	CreateWebhook(name, url, resource, event string) error
+	GetPersonInformation(id string) (WebexPeople, error)
+	GetMessages(roomId string, max int) ([]WebexMessage, error)
 }
 
 type WebexClient struct {
@@ -140,7 +151,7 @@ func (wbx *WebexClient) GetBotDetails() (WebexPeople, error) {
 	return result, nil
 }
 
-func (wbx *WebexClient) GetPersonInfromation(id string) (WebexPeople, error) {
+func (wbx *WebexClient) GetPersonInformation(id string) (WebexPeople, error) {
 
 	var result WebexPeopleReply
 	url := "/v1/people?" + "id=" + id

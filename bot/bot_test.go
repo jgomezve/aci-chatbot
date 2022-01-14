@@ -41,7 +41,7 @@ func TestCreateBot(t *testing.T) {
 	t.Run("Unavailable Webex Client", func(t *testing.T) {
 		wmc := webex.WebexMockClient
 		wmc.SetDefaultFunctions()
-		webex.GetBotDetailsF = func() (webex.WebexPeople, error) {
+		wmc.GetBotDetailsF = func() (webex.WebexPeople, error) {
 			return webex.WebexPeople{}, errors.New("Generic Webex Error")
 		}
 		b, err := NewBot(&wmc, nil, "http://test_bot.com")
@@ -53,7 +53,7 @@ func TestCreateBot(t *testing.T) {
 	t.Run("Existing Webhook", func(t *testing.T) {
 		wmc := webex.WebexMockClient
 		wmc.SetDefaultFunctions()
-		webex.GetWebHooksF = func() ([]webex.WebexWebhook, error) {
+		wmc.GetWebHooksF = func() ([]webex.WebexWebhook, error) {
 			log.Println("Mock: Getting Webhook")
 			return []webex.WebexWebhook{{
 				Name: "Test-Bot",
@@ -67,13 +67,13 @@ func TestCreateBot(t *testing.T) {
 	t.Run("Existing Webhook - Error Deleting", func(t *testing.T) {
 		wmc := webex.WebexMockClient
 		wmc.SetDefaultFunctions()
-		webex.GetWebHooksF = func() ([]webex.WebexWebhook, error) {
+		wmc.GetWebHooksF = func() ([]webex.WebexWebhook, error) {
 			log.Println("Mock: Getting Webhook")
 			return []webex.WebexWebhook{{
 				Name: "Test-Bot",
 			}}, nil
 		}
-		webex.DeleteWebhookF = func(name, tUrl, id string) error {
+		wmc.DeleteWebhookF = func(name, tUrl, id string) error {
 			return errors.New("Generic Webex Error")
 		}
 		b, err := NewBot(&wmc, nil, "http://test_bot.com")
@@ -84,7 +84,7 @@ func TestCreateBot(t *testing.T) {
 	t.Run("Error Creating Webhook", func(t *testing.T) {
 		wmc := webex.WebexMockClient
 		wmc.SetDefaultFunctions()
-		webex.CreateWebhookF = func(name, url, resource, event string) error {
+		wmc.CreateWebhookF = func(name, url, resource, event string) error {
 			return errors.New("Generic Webex Error")
 		}
 
@@ -123,7 +123,7 @@ func TestAboutMeHandler(t *testing.T) {
 
 		b.router.ServeHTTP(response, request)
 
-		exp, _ := webex.GetBotDetailsF()
+		exp, _ := wmc.GetBotDetailsF()
 		expByte, _ := json.Marshal(exp)
 
 		equals(t, response.Code, http.StatusOK)
@@ -137,7 +137,7 @@ func TestAboutMeHandler(t *testing.T) {
 		wmc.SetDefaultFunctions()
 		b, _ := NewBot(&wmc, nil, "http://test_bot.com")
 		// Make it fail after creating the Bot
-		webex.GetBotDetailsF = func() (webex.WebexPeople, error) {
+		wmc.GetBotDetailsF = func() (webex.WebexPeople, error) {
 			return webex.WebexPeople{}, errors.New("Webex Timeout")
 		}
 		request, _ := http.NewRequest(http.MethodGet, "/about", nil)
@@ -171,7 +171,7 @@ func TestWebHookHanlderGeneral(t *testing.T) {
 
 		b.router.ServeHTTP(response, request)
 		equals(t, response.Code, http.StatusInternalServerError)
-		equals(t, webex.LastMsgSent, "")
+		equals(t, wmc.LastMsgSent, "")
 	})
 	// Error Reading Message from Webex
 	t.Run("Error Webex Message", func(t *testing.T) {
@@ -179,7 +179,7 @@ func TestWebHookHanlderGeneral(t *testing.T) {
 		wmc.SetDefaultFunctions()
 		amc := apic.ApicMockClient
 		amc.SetDefaultFunctions()
-		webex.GetMessagesF = func(roomId string, max int) ([]webex.WebexMessage, error) {
+		wmc.GetMessagesF = func(roomId string, max int) ([]webex.WebexMessage, error) {
 			return []webex.WebexMessage{{}}, errors.New("Generic Webex error")
 		}
 		b, _ := NewBot(&wmc, &amc, "http://test_bot.com")
@@ -195,7 +195,7 @@ func TestWebHookHanlderGeneral(t *testing.T) {
 
 		b.router.ServeHTTP(response, request)
 		equals(t, response.Code, http.StatusInternalServerError)
-		equals(t, webex.LastMsgSent, "")
+		equals(t, wmc.LastMsgSent, "")
 	})
 	// Message which triggered the Webhook came from the bot itself
 	t.Run("Message from Bot", func(t *testing.T) {
@@ -203,10 +203,10 @@ func TestWebHookHanlderGeneral(t *testing.T) {
 		wmc.SetDefaultFunctions()
 		amc := apic.ApicMockClient
 		amc.SetDefaultFunctions()
-		webex.GetMessagesF = func(roomId string, max int) ([]webex.WebexMessage, error) {
+		wmc.GetMessagesF = func(roomId string, max int) ([]webex.WebexMessage, error) {
 			return []webex.WebexMessage{{Text: "/cpu", PersonId: "BotId"}}, nil
 		}
-		webex.GetBotDetailsF = func() (webex.WebexPeople, error) {
+		wmc.GetBotDetailsF = func() (webex.WebexPeople, error) {
 			return webex.WebexPeople{Id: "BotId"}, nil
 		}
 		b, _ := NewBot(&wmc, &amc, "http://test_bot.com")
@@ -232,7 +232,7 @@ func TestWebHookHanlderCpuCommand(t *testing.T) {
 		wmc.SetDefaultFunctions()
 		amc := apic.ApicMockClient
 		amc.SetDefaultFunctions()
-		webex.GetMessagesF = func(roomId string, max int) ([]webex.WebexMessage, error) {
+		wmc.GetMessagesF = func(roomId string, max int) ([]webex.WebexMessage, error) {
 			return []webex.WebexMessage{{Text: "/cpu"}}, nil
 		}
 		b, _ := NewBot(&wmc, &amc, "http://test_bot.com")
@@ -249,7 +249,7 @@ func TestWebHookHanlderCpuCommand(t *testing.T) {
 		b.router.ServeHTTP(response, request)
 		equals(t, response.Code, http.StatusOK)
 		expectedMessage := "Hi  🤖 !\n- **Proc**: `abc`\t💻 **CPU**: 50\t💾 **Memory**: 0\n- **Proc**: `def`\t💻 **CPU**: 40\t💾 **Memory**: 10"
-		equals(t, webex.LastMsgSent, expectedMessage)
+		equals(t, wmc.LastMsgSent, expectedMessage)
 	})
 	// Test Unreachable APIC
 	t.Run("Error APIC unreachable", func(t *testing.T) {
@@ -257,7 +257,7 @@ func TestWebHookHanlderCpuCommand(t *testing.T) {
 		wmc.SetDefaultFunctions()
 		amc := apic.ApicMockClient
 		amc.SetDefaultFunctions()
-		webex.GetMessagesF = func(roomId string, max int) ([]webex.WebexMessage, error) {
+		wmc.GetMessagesF = func(roomId string, max int) ([]webex.WebexMessage, error) {
 			return []webex.WebexMessage{{Text: "/cpu"}}, nil
 		}
 		b, _ := NewBot(&wmc, &amc, "http://test_bot.com")
@@ -267,7 +267,7 @@ func TestWebHookHanlderCpuCommand(t *testing.T) {
 				RoomId: "AbC13",
 			},
 		}
-		apic.GetProcEntityF = func() ([]apic.ApicMoAttributes, error) {
+		amc.GetProcEntityF = func() ([]apic.ApicMoAttributes, error) {
 			return []apic.ApicMoAttributes{{}}, errors.New("Generic APIC Error")
 		}
 		jp, _ := json.Marshal(reqB)
@@ -277,6 +277,6 @@ func TestWebHookHanlderCpuCommand(t *testing.T) {
 		b.router.ServeHTTP(response, request)
 		equals(t, response.Code, http.StatusOK)
 		expectedMessage := "Hi  🤖 !. I could not reach the APIC... Are there any issues?"
-		equals(t, webex.LastMsgSent, expectedMessage)
+		equals(t, wmc.LastMsgSent, expectedMessage)
 	})
 }

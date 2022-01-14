@@ -1,48 +1,34 @@
 package apic
 
-import "log"
-
 type ApicClientMocks struct {
-	tkn     string
-	baseURL string
+	GetProcEntityF func() ([]ApicMoAttributes, error)
+	GetEnpointF    func(mac string) []ApicMoAttributes
 }
 
 // TODO: check if this approach is valid
 var (
 	ApicMockClient ApicClientMocks
-	loginF         func() error
-	GetProcEntityF func() ([]ApicMoAttributes, error)
-	GetEnpointF    func(mac string) []ApicMoAttributes
 )
 
 // Mock functions default values
 func (ac *ApicClientMocks) SetDefaultFunctions() {
-	loginF = func() error {
-		log.Println("Mock: APIC Login")
-		return nil
-	}
-
-	GetProcEntityF = func() ([]ApicMoAttributes, error) {
+	ac.GetProcEntityF = func() ([]ApicMoAttributes, error) {
 		procs := []ApicMoAttributes{}
 		procs = append(procs, ApicMoAttributes{"dn": "abc", "cpuPct": "50", "memFree": "0"})
 		procs = append(procs, ApicMoAttributes{"dn": "def", "cpuPct": "40", "memFree": "10"})
 		return procs, nil
 	}
 
-	GetEnpointF = func(mac string) []ApicMoAttributes {
+	ac.GetEnpointF = func(mac string) []ApicMoAttributes {
 		eps := []ApicMoAttributes{}
 		return eps
 	}
 }
 
-func (ac *ApicClientMocks) login() error {
-	return loginF()
-}
-
 func (ac *ApicClientMocks) GetProcEntity() ([]ApicMoAttributes, error) {
-	return GetProcEntityF()
+	return ac.GetProcEntityF()
 }
 
 func (ac *ApicClientMocks) GetEnpoint(mac string) []ApicMoAttributes {
-	return GetEnpointF(mac)
+	return ac.GetEnpointF(mac)
 }

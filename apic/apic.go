@@ -23,7 +23,6 @@ type HttpClient interface {
 }
 
 type ApicInterface interface {
-	login() error
 	GetEnpoint(mac string) []ApicMoAttributes
 	GetProcEntity() ([]ApicMoAttributes, error)
 }

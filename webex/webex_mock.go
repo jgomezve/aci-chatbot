@@ -1,3 +1,5 @@
+//+build !webex
+
 package webex
 
 import (

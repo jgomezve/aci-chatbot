@@ -1,3 +1,5 @@
+//+build !apic
+
 package apic
 
 type ApicClientMocks struct {

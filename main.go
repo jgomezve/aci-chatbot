@@ -56,12 +56,12 @@ func main() {
 		panic("APIC connection failed")
 	}
 	// Configure and start Bot server
-	bot, err := bot.NewBot(&wbx, &apic, r.botUrl)
+	b, err := bot.NewBot(&wbx, &apic, r.botUrl)
 
 	if err != nil {
 		panic("Bot failed to start. Could not contact Webex API")
 	}
-	if err = bot.Start(":7001"); err != nil {
+	if err = b.Start(":7001"); err != nil {
 		panic("Bot failed to start. Could not start HTTP Server")
 	}
 }

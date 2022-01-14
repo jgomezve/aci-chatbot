@@ -3,11 +3,19 @@ package bot
 import (
 	"aci-chatbot/apic"
 	"aci-chatbot/webex"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/gorilla/websocket"
 )
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
 
 // Callback helpers
 type Callback func(a apic.ApicInterface, m Message, wm WebexMessage) string
@@ -69,7 +77,7 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 		return Bot{}, err
 	}
 	bot.routes()
-
+	bot.setupWebSocket()
 	return bot, nil
 }
 
@@ -195,6 +203,7 @@ func (b *Bot) routes() {
 	b.router.HandleFunc("/about", aboutMeHandler(b.wbx))
 	b.router.HandleFunc("/test", testHandler)
 	b.router.HandleFunc("/webhook", webhookHandler(b.wbx, b.apic, b.commands, b.info))
+	// b.router.HandleFunc("/webscket", websocketHandler(b.wbx, b.apic, b.info))
 }
 func (b *Bot) addCommand(cmd string, h string, re string, call Callback) {
 	// add item to the dispatch table
@@ -225,6 +234,32 @@ func (b *Bot) setupWebhook() error {
 		return err
 	}
 	return nil
+}
+
+func (b *Bot) setupWebSocket() {
+	//add self as sender client
+	u := fmt.Sprintf("wss://10.49.208.146/socket%s", b.apic.(*apic.ApicClient).Tkn)
+	d := *websocket.DefaultDialer
+	d.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	wsc, _, err := d.Dial(u, nil)
+	if err != nil {
+		log.Println("[DIAL]", err)
+	}
+	id, _ := b.apic.WssTenantSubscription()
+	log.Printf("Subscription ID: %s\n", id)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for {
+			_, message, err := wsc.ReadMessage()
+			if err != nil {
+				log.Println("read:", err)
+				return
+			}
+			log.Printf("recv: %s", message)
+			b.wbx.SendMessageToRoom("Something happened with a Tenant", "Y2lzY29zcGFyazovL3VzL1JPT00vZjRmZWZjZDAtNjI3NS0xMWVjLThiMTQtMDEyYWYxZGQ1M2Vl")
+		}
+	}()
 }
 func (b *Bot) Start(addr string) error {
 	// Start the http server

@@ -54,7 +54,7 @@ func TestApicClient(t *testing.T) {
 		if clt.baseURL != "http://mocking.com" {
 			t.Error("error initializing client")
 		}
-		if clt.tkn == "" {
+		if clt.Tkn == "" {
 			t.Error("error getting token")
 		}
 
@@ -72,7 +72,7 @@ func TestApicClient(t *testing.T) {
 		if clt.baseURL != "http://mocking.com" {
 			t.Error("error initializing client")
 		}
-		if clt.tkn == "" {
+		if clt.Tkn == "" {
 			t.Error("error getting token")
 		}
 		if clt.httpClient.(*mocks.MockClient).Timeout != 8*time.Second {

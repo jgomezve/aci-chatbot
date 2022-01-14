@@ -34,3 +34,7 @@ func (ac *ApicClientMocks) GetProcEntity() ([]ApicMoAttributes, error) {
 func (ac *ApicClientMocks) GetEnpoint(mac string) []ApicMoAttributes {
 	return ac.GetEnpointF(mac)
 }
+
+func (ac *ApicClientMocks) WssTenantSubscription() (string, error) {
+	return "", nil
+}

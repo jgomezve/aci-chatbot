@@ -25,13 +25,14 @@ type HttpClient interface {
 type ApicInterface interface {
 	GetEnpoint(mac string) []ApicMoAttributes
 	GetProcEntity() ([]ApicMoAttributes, error)
+	WssTenantSubscription() (string, error)
 }
 
 type ApicClient struct {
 	httpClient HttpClient
 	usr        string
 	pwd        string
-	tkn        string
+	Tkn        string
 	baseURL    string
 }
 
@@ -90,8 +91,22 @@ func (client *ApicClient) login() error {
 	}
 
 	r := getApicManagedObjects(result, "aaaLogin")
-	client.tkn = r[0]["token"]
+	client.Tkn = r[0]["token"]
 	return nil
+}
+
+func (client *ApicClient) WssTenantSubscription() (string, error) {
+	req, err := client.makeCall(http.MethodGet, "/api/class/fvTenant.json?subscription=yes&refresh-timeout=360?query-target=subtree", nil)
+
+	if err != nil {
+		return "", err
+	}
+	var result map[string]interface{}
+	if err = client.doCall(req, &result); err != nil {
+		log.Println("Error: ", err)
+		return "", err
+	}
+	return result["subscriptionId"].(string), nil
 }
 
 func (client *ApicClient) GetEnpoint(mac string) []ApicMoAttributes {
@@ -134,7 +149,7 @@ func (client *ApicClient) makeCall(m string, url string, p io.Reader) (*http.Req
 	req.Header.Add("Accept", "application/json")
 	// req.Header.Add("Content-Type", "application/json")
 	if url != "/api/aaaLogin.json" {
-		req.Header.Set("Cookie", "APIC-cookie="+client.tkn)
+		req.Header.Set("Cookie", "APIC-cookie="+client.Tkn)
 	}
 
 	return req, nil

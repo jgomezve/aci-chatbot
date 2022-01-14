@@ -42,7 +42,6 @@ func checkRequirements() (*Requirements, error) {
 }
 
 func main() {
-
 	// Check requirements
 	r, err := checkRequirements()
 	if err != nil {
@@ -57,10 +56,10 @@ func main() {
 	}
 	// Configure and start Bot server
 	b, err := bot.NewBot(&wbx, &apic, r.botUrl)
-
 	if err != nil {
 		panic("Bot failed to start. Could not contact Webex API")
 	}
+	b.SetupWebSocket()
 	if err = b.Start(":7001"); err != nil {
 		panic("Bot failed to start. Could not start HTTP Server")
 	}

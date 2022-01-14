@@ -12,11 +12,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-}
-
 // Callback helpers
 type Callback func(a apic.ApicInterface, m Message, wm WebexMessage) string
 
@@ -77,7 +72,6 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 		return Bot{}, err
 	}
 	bot.routes()
-	bot.setupWebSocket()
 	return bot, nil
 }
 
@@ -236,7 +230,7 @@ func (b *Bot) setupWebhook() error {
 	return nil
 }
 
-func (b *Bot) setupWebSocket() {
+func (b *Bot) SetupWebSocket() {
 	//add self as sender client
 	u := fmt.Sprintf("wss://10.49.208.146/socket%s", b.apic.(*apic.ApicClient).Tkn)
 	d := *websocket.DefaultDialer

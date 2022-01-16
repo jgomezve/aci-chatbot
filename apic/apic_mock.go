@@ -3,8 +3,9 @@
 package apic
 
 type ApicClientMocks struct {
-	GetProcEntityF func() ([]ApicMoAttributes, error)
-	GetEnpointF    func(mac string) []ApicMoAttributes
+	GetProcEntityF        func() ([]ApicMoAttributes, error)
+	GetEnpointF           func(mac string) []ApicMoAttributes
+	GetFabricInformationF func() (FabricInformation, error)
 }
 
 // TODO: check if this approach is valid
@@ -25,6 +26,10 @@ func (ac *ApicClientMocks) SetDefaultFunctions() {
 		eps := []ApicMoAttributes{}
 		return eps
 	}
+
+	ac.GetFabricInformationF = func() (FabricInformation, error) {
+		return FabricInformation{Name: "Test Fabric", Health: "95"}, nil
+	}
 }
 
 func (ac *ApicClientMocks) GetProcEntity() ([]ApicMoAttributes, error) {
@@ -33,4 +38,8 @@ func (ac *ApicClientMocks) GetProcEntity() ([]ApicMoAttributes, error) {
 
 func (ac *ApicClientMocks) GetEnpoint(mac string) []ApicMoAttributes {
 	return ac.GetEnpointF(mac)
+}
+
+func (ac *ApicClientMocks) GetFabricInformation() (FabricInformation, error) {
+	return ac.GetFabricInformationF()
 }

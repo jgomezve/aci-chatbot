@@ -15,8 +15,19 @@ import (
 )
 
 type Option func(*ApicClient)
+type Filter func(string) string
 
 type ApicMoAttributes map[string]string
+
+type FabricInformation struct {
+	Name   string
+	Url    string
+	Pods   []map[string]string
+	Apics  []map[string]string
+	Spines []map[string]string
+	Leafs  []map[string]string
+	Health string
+}
 
 type HttpClient interface {
 	Do(req *http.Request) (*http.Response, error)
@@ -25,6 +36,7 @@ type HttpClient interface {
 type ApicInterface interface {
 	GetEnpoint(mac string) []ApicMoAttributes
 	GetProcEntity() ([]ApicMoAttributes, error)
+	GetFabricInformation() (FabricInformation, error)
 }
 
 type ApicClient struct {
@@ -56,6 +68,9 @@ func SetTimeout(t time.Duration) Option {
 	}
 }
 
+func addFilter(f string) string {
+	return f
+}
 func NewApicClient(url, usr, pwd string, options ...Option) (ApicClient, error) {
 	client := ApicClient{
 		usr:        usr,
@@ -92,6 +107,77 @@ func (client *ApicClient) login() error {
 	r := getApicManagedObjects(result, "aaaLogin")
 	client.tkn = r[0]["token"]
 	return nil
+}
+
+func (client *ApicClient) GetFabricInformation() (FabricInformation, error) {
+
+	var info FabricInformation
+
+	// Get the values from the APIC
+	banner, err := client.GetApicClass("aaaPreLoginBanner")
+	if err != nil {
+		return FabricInformation{}, err
+	}
+	pods, err := client.GetApicClass("fabricPod")
+	if err != nil {
+		return FabricInformation{}, err
+	}
+	nodes, err := client.GetApicClass("fabricNode")
+	if err != nil {
+		return FabricInformation{}, err
+	}
+	health, err := client.GetApicClass("fabricOverallHealthHist5min", "query-target-filter=and(eq(fabricOverallHealthHist5min.dn,\"topology/HDfabricOverallHealth5min-0\"))")
+	if err != nil {
+		return FabricInformation{}, err
+	}
+	//Parse result
+	info.Name = banner[0]["guiTextMessage"]
+	info.Pods = make([]map[string]string, 0)
+
+	for _, item := range pods {
+		info.Pods = append(info.Pods, map[string]string{"id": item["id"], "type": item["podType"]})
+	}
+
+	info.Spines = make([]map[string]string, 0)
+	info.Leafs = make([]map[string]string, 0)
+	info.Apics = make([]map[string]string, 0)
+	for _, item := range nodes {
+		switch item["role"] {
+		case "controller":
+			info.Apics = append(info.Apics, map[string]string{"name": item["name"], "version": item["version"]})
+		case "leaf":
+			info.Leafs = append(info.Leafs, map[string]string{"name": item["name"], "version": item["version"]})
+		case "spine":
+			info.Spines = append(info.Spines, map[string]string{"name": item["name"], "version": item["version"]})
+		}
+	}
+	info.Health = health[0]["healthAvg"]
+	info.Url = client.baseURL
+	return info, nil
+}
+
+func (client *ApicClient) GetApicClass(n string, filter ...string) ([]ApicMoAttributes, error) {
+	var result map[string]interface{}
+	url := fmt.Sprintf("/api/node/class/%s.json", n)
+
+	// TODO: Hwo to improve thi
+	if len(filter) > 0 {
+		url = url + "?"
+	}
+	for _, f := range filter {
+		url = url + f
+	}
+	req, err := client.makeCall(http.MethodGet, url, nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err = client.doCall(req, &result); err != nil {
+		log.Println("Error: ", err)
+		return nil, err
+	}
+	return getApicManagedObjects(result, n), nil
 }
 
 func (client *ApicClient) GetEnpoint(mac string) []ApicMoAttributes {

@@ -57,6 +57,8 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 	}
 
 	bot.commands = make(map[string]Command)
+	log.Println("Adding `/info` command")
+	bot.addCommand("/info", "Get Fabric Information", "\\/info", infoCommand)
 	log.Println("Adding `/cpu` command")
 	bot.addCommand("/cpu", "Get APIC CPU Information", "\\/cpu", cpuCommand)
 	log.Println("Adding `/ep` command")
@@ -86,6 +88,33 @@ func endpointCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 	}
 
 	return fmt.Sprintf("Hi %s 🤖 , here the details of ep `%s` %s", wm.sender, splitEpCommand(m.cmd)["mac"], res)
+}
+
+// /info handler
+func infoCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
+	res := ""
+	info, err := c.GetFabricInformation()
+
+	if err != nil {
+		log.Printf("Error while connecting to the Apic. Err: %s", err)
+		return fmt.Sprintf("Hi %s 🤖 !. I could not reach the APIC... Are there any issues?", wm.sender)
+
+	}
+	res = res + fmt.Sprintf("\nThis is the information of the Fabric <code>%s</code> (%s): \n\n", info.Name, info.Url)
+	res = res + fmt.Sprintf("<ul><li>Current Health Score: <strong>%s</strong></li>", info.Health)
+	res = res + "<li><strong>APIC Controllers</strong><ul>"
+	for _, item := range info.Apics {
+		res = res + "<li>" + item["name"] + " (<strong>" + item["version"] + "</strong>)</li>"
+	}
+	res = res + "</ul><li><strong>Pods</strong><ul>"
+	for _, item := range info.Pods {
+		res = res + "<li>Pod" + item["id"] + " <em>" + item["type"] + "</em></li>"
+	}
+	res = res + "</ul><li></strong>Switches</strong><ul>"
+	res = res + fmt.Sprintf("<li># of Spines : <strong>%d</strong></li>", len(info.Spines))
+	res = res + fmt.Sprintf("<li># of Leafs : <strong>%d</strong></li>", len(info.Leafs))
+	res = res + "</ul></ul></li>"
+	return fmt.Sprintf("Hi %s 🤖 !%s\n\n", wm.sender, res)
 }
 
 // /cpu handler

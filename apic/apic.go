@@ -96,12 +96,12 @@ func (client *ApicClient) login() error {
 }
 
 func (client *ApicClient) WssTenantSubscription() (string, error) {
+	var result map[string]interface{}
 	req, err := client.makeCall(http.MethodGet, "/api/class/fvTenant.json?subscription=yes&refresh-timeout=360?query-target=subtree", nil)
 
 	if err != nil {
 		return "", err
 	}
-	var result map[string]interface{}
 	if err = client.doCall(req, &result); err != nil {
 		log.Println("Error: ", err)
 		return "", err

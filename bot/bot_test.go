@@ -248,7 +248,9 @@ func TestWebHookHanlderCpuCommand(t *testing.T) {
 
 		b.router.ServeHTTP(response, request)
 		equals(t, response.Code, http.StatusOK)
-		expectedMessage := "Hi  🤖 !\n- **Proc**: `abc`\t💻 **CPU**: 50\t💾 **Memory**: 0\n- **Proc**: `def`\t💻 **CPU**: 40\t💾 **Memory**: 10"
+		expectedMessage := "Hi  🤖 !\n\n\t\nThis is the CPU information of the controllers: \n\n" +
+			"<ul><li><code>APIC 1</code> -> \t💻 <strong>CPU: </strong>50\t💾 <strong>Memory %: </strong> 66.666667</li>" +
+			"<li><code>APIC 2</code> -> \t💻 <strong>CPU: </strong>40\t💾 <strong>Memory %: </strong> 60.000000</li></ul>"
 		equals(t, wmc.LastMsgSent, expectedMessage)
 	})
 	// Test Unreachable APIC

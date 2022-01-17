@@ -15,7 +15,6 @@ import (
 )
 
 type Option func(*ApicClient)
-type Filter func(string) string
 
 type ApicMoAttributes map[string]string
 
@@ -29,14 +28,23 @@ type FabricInformation struct {
 	Health string
 }
 
+type EndpointInformation struct {
+	Mac      string
+	Ips      []string
+	Location []map[string]string
+	Tenant   string
+	App      string
+	Epg      string
+}
+
 type HttpClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
 type ApicInterface interface {
-	GetEnpoint(mac string) []ApicMoAttributes
 	GetProcEntity() ([]ApicMoAttributes, error)
 	GetFabricInformation() (FabricInformation, error)
+	GetEndpointInformation(m string) ([]EndpointInformation, error)
 }
 
 type ApicClient struct {
@@ -68,9 +76,6 @@ func SetTimeout(t time.Duration) Option {
 	}
 }
 
-func addFilter(f string) string {
-	return f
-}
 func NewApicClient(url, usr, pwd string, options ...Option) (ApicClient, error) {
 	client := ApicClient{
 		usr:        usr,
@@ -90,6 +95,7 @@ func NewApicClient(url, usr, pwd string, options ...Option) (ApicClient, error) 
 	return client, nil
 }
 
+// TODO: Use a generic version of _getApicClass_ that uses all the HTTP Verbs
 func (client *ApicClient) login() error {
 
 	var result map[string]interface{}
@@ -114,19 +120,19 @@ func (client *ApicClient) GetFabricInformation() (FabricInformation, error) {
 	var info FabricInformation
 
 	// Get the values from the APIC
-	banner, err := client.GetApicClass("aaaPreLoginBanner")
+	banner, err := client.getApicClass("aaaPreLoginBanner")
 	if err != nil {
 		return FabricInformation{}, err
 	}
-	pods, err := client.GetApicClass("fabricPod")
+	pods, err := client.getApicClass("fabricPod")
 	if err != nil {
 		return FabricInformation{}, err
 	}
-	nodes, err := client.GetApicClass("fabricNode")
+	nodes, err := client.getApicClass("fabricNode")
 	if err != nil {
 		return FabricInformation{}, err
 	}
-	health, err := client.GetApicClass("fabricOverallHealthHist5min", "query-target-filter=and(eq(fabricOverallHealthHist5min.dn,\"topology/HDfabricOverallHealth5min-0\"))")
+	health, err := client.getApicClass("fabricOverallHealthHist5min", "query-target-filter=and(eq(fabricOverallHealthHist5min.dn,\"topology/HDfabricOverallHealth5min-0\"))")
 	if err != nil {
 		return FabricInformation{}, err
 	}
@@ -137,7 +143,6 @@ func (client *ApicClient) GetFabricInformation() (FabricInformation, error) {
 	for _, item := range pods {
 		info.Pods = append(info.Pods, map[string]string{"id": item["id"], "type": item["podType"]})
 	}
-
 	info.Spines = make([]map[string]string, 0)
 	info.Leafs = make([]map[string]string, 0)
 	info.Apics = make([]map[string]string, 0)
@@ -156,11 +161,75 @@ func (client *ApicClient) GetFabricInformation() (FabricInformation, error) {
 	return info, nil
 }
 
-func (client *ApicClient) GetApicClass(n string, filter ...string) ([]ApicMoAttributes, error) {
+func (client *ApicClient) GetEndpointInformation(m string) ([]EndpointInformation, error) {
+	var info []EndpointInformation
+	ep, err := client.getApicClass("fvCEp", fmt.Sprintf("query-target-filter=eq(fvCEp.mac,\"%s\")", m))
+	if err != nil {
+		return []EndpointInformation{}, err
+	}
+	for _, itemEp := range ep {
+		var ep EndpointInformation
+		ep.Mac = itemEp["mac"]
+		ep.Tenant = GetRn(itemEp["dn"], "tn")
+		ep.App = GetRn(itemEp["dn"], "ap")
+		ep.Epg = GetRn(itemEp["dn"], "epg")
+		// Only return EPG Endpoints
+		if ep.Epg == "" {
+			continue
+		}
+		ips, err := client.getMoChildren("fvCEp", "fvIp", fmt.Sprintf("eq(fvCEp.dn,\"%s\")", itemEp["dn"]))
+		if err != nil {
+			return []EndpointInformation{}, err
+		}
+		for _, itempIp := range ips {
+			ep.Ips = append(ep.Ips, itempIp["addr"])
+		}
+		paths, err := client.getMoChildren("fvCEp", "fvRsCEpToPathEp", fmt.Sprintf("eq(fvCEp.dn,\"%s\")", itemEp["dn"]))
+		if err != nil {
+			return []EndpointInformation{}, err
+		}
+		for _, itempPath := range paths {
+			location := getPath(itempPath["tDn"])
+			if location != nil {
+				ep.Location = append(ep.Location, location)
+			}
+
+		}
+
+		info = append(info, ep)
+	}
+	return info, nil
+}
+
+func (client *ApicClient) GetProcEntity() ([]ApicMoAttributes, error) {
+	proc, err := client.getApicClass("procEntity")
+	if err != nil {
+		return nil, err
+	}
+	return proc, nil
+}
+
+func (client *ApicClient) getMoChildren(parent string, children string, query string) ([]ApicMoAttributes, error) {
+	var result map[string]interface{}
+	url := fmt.Sprintf("/api/node/class/%s.json?rsp-subtree=children&rsp-subtree-class=%s&query-target-filter=%s", parent, children, query)
+	req, err := client.makeCall(http.MethodGet, url, nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err = client.doCall(req, &result); err != nil {
+		log.Println("Error: ", err)
+		return nil, err
+	}
+	return getApicManagedObjectsChildren(result, parent, children), nil
+}
+
+func (client *ApicClient) getApicClass(n string, filter ...string) ([]ApicMoAttributes, error) {
 	var result map[string]interface{}
 	url := fmt.Sprintf("/api/node/class/%s.json", n)
 
-	// TODO: Hwo to improve thi
+	// TODO: How to improve this
 	if len(filter) > 0 {
 		url = url + "?"
 	}
@@ -178,37 +247,6 @@ func (client *ApicClient) GetApicClass(n string, filter ...string) ([]ApicMoAttr
 		return nil, err
 	}
 	return getApicManagedObjects(result, n), nil
-}
-
-func (client *ApicClient) GetEnpoint(mac string) []ApicMoAttributes {
-	var result map[string]interface{}
-	url := "/api/node/class/fvCEp.json?query-target-filter=eq(fvCEp.mac,\"" + mac + "\")"
-	req, err := client.makeCall(http.MethodGet, url, nil)
-
-	if err != nil {
-		return nil
-	}
-
-	if err = client.doCall(req, &result); err != nil {
-		log.Println("Error: ", err)
-		return nil
-	}
-	return getApicManagedObjects(result, "fvCEp")
-}
-
-func (client *ApicClient) GetProcEntity() ([]ApicMoAttributes, error) {
-	var result map[string]interface{}
-	req, err := client.makeCall(http.MethodGet, "/api/node/class/procEntity.json", nil)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if err = client.doCall(req, &result); err != nil {
-		log.Println("Error: ", err)
-		return nil, err
-	}
-	return getApicManagedObjects(result, "procEntity"), nil
 }
 
 func (client *ApicClient) makeCall(m string, url string, p io.Reader) (*http.Request, error) {
@@ -237,6 +275,7 @@ func (client *ApicClient) doCall(req *http.Request, res interface{}) error {
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
+		fmt.Println(req.URL.Path)
 		return errors.New("unable to read the response body")
 	}
 
@@ -245,6 +284,8 @@ func (client *ApicClient) doCall(req *http.Request, res interface{}) error {
 	}
 
 	if err = json.Unmarshal(body, &res); err != nil {
+		fmt.Println(req.URL.Path)
+		// TODO: Check error message
 		return errors.New("unable to read the response body")
 	}
 	return nil

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 // Callback helpers
@@ -80,14 +81,38 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 func endpointCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 
 	res := ""
-	for _, item := range c.GetEnpoint(splitEpCommand(m.cmd)["mac"]) {
-		res = res + "\n- **Bridge Domain**: `" + item["bdDn"] + "`"
-	}
-	if res == "" {
-		res = "/n Sorry " + wm.sender + "... I could not find this endpoint **mac**: `" + splitEpCommand(m.cmd)["mac"] + "`"
-	}
+	info, err := c.GetEndpointInformation(splitEpCommand(m.cmd)["mac"])
+	if err != nil {
+		log.Printf("Error while connecting to the Apic. Err: %s", err)
+		return fmt.Sprintf("Hi %s 🤖 !. I could not reach the APIC... Are there any issues?", wm.sender)
 
-	return fmt.Sprintf("Hi %s 🤖 , here the details of ep `%s` %s", wm.sender, splitEpCommand(m.cmd)["mac"], res)
+	}
+	res = res + fmt.Sprintf("\nThis is the information for the Endpoint <code>%s</code>", splitEpCommand(m.cmd)["mac"])
+	res = res + "<ul>"
+	for _, item := range info {
+		res = res + fmt.Sprintf("<li><strong>Tenant</strong>: %s</li>", item.Tenant)
+		res = res + fmt.Sprintf("<li><strong>Application Profile</strong>: %s</li>", item.App)
+		res = res + fmt.Sprintf("<li><strong>EPG</strong>: %s</li>", item.Epg)
+		for idx, path := range item.Location {
+			res = res + fmt.Sprintf("<li><strong>Location %d</strong>: </li>", idx+1)
+			res = res + "<ul>"
+			res = res + fmt.Sprintf("<li><strong>Pod</strong>: %s", path["pod"])
+			res = res + fmt.Sprintf("  <strong>Node</strong>: %s", path["nodes"])
+			res = res + fmt.Sprintf("  <strong>Type</strong>: %s", path["type"])
+			res = res + fmt.Sprintf("  <strong>Port</strong>: %s</li>", path["port"])
+			res = res + "</ul>"
+		}
+		if len(item.Ips) > 0 {
+			res = res + "<li><strong>IPs</strong>: </li>"
+			res = res + "<ul>"
+			for _, path := range item.Ips {
+				res = res + fmt.Sprintf("<li><strong>IP</strong>: %s</li>", path)
+			}
+			res = res + "</ul>"
+		}
+	}
+	res = res + "</ul>"
+	return fmt.Sprintf("Hi %s 🤖 !\n\n%s", wm.sender, res)
 }
 
 // /info handler
@@ -100,7 +125,7 @@ func infoCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 		return fmt.Sprintf("Hi %s 🤖 !. I could not reach the APIC... Are there any issues?", wm.sender)
 
 	}
-	res = res + fmt.Sprintf("\nThis is the information of the Fabric <code>%s</code> (%s): \n\n", info.Name, info.Url)
+	res = res + fmt.Sprintf("\nThis is the general information of the Fabric <code>%s</code> (%s): \n\n", info.Name, info.Url)
 	res = res + fmt.Sprintf("<ul><li>Current Health Score: <strong>%s</strong></li>", info.Health)
 	res = res + "<li><strong>APIC Controllers</strong><ul>"
 	for _, item := range info.Apics {
@@ -114,7 +139,7 @@ func infoCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 	res = res + fmt.Sprintf("<li># of Spines : <strong>%d</strong></li>", len(info.Spines))
 	res = res + fmt.Sprintf("<li># of Leafs : <strong>%d</strong></li>", len(info.Leafs))
 	res = res + "</ul></ul></li>"
-	return fmt.Sprintf("Hi %s 🤖 !%s\n\n", wm.sender, res)
+	return fmt.Sprintf("Hi %s 🤖 !\n\n%s", wm.sender, res)
 }
 
 // /cpu handler
@@ -125,12 +150,17 @@ func cpuCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 	if err != nil {
 		log.Printf("Error while connecting to the Apic. Err: %s", err)
 		return fmt.Sprintf("Hi %s 🤖 !. I could not reach the APIC... Are there any issues?", wm.sender)
+	}
+	res = res + "\nThis is the CPU information of the controllers: \n\n"
+	res = res + "<ul>"
 
-	}
 	for _, item := range cpu {
-		res = res + "\n- **Proc**: `" + item["dn"] + "`\t💻 **CPU**: " + item["cpuPct"] + "\t💾 **Memory**: " + item["memFree"]
+		memFree, _ := strconv.ParseFloat(item["memFree"], 32)
+		memMax, _ := strconv.ParseFloat(item["maxMemAlloc"], 32)
+		res = res + fmt.Sprintf("<li><code>APIC %s</code> -> \t💻 <strong>CPU: </strong>%s\t💾 <strong>Memory %%: </strong> %f</li>", apic.GetRn(item["dn"], "node"), item["cpuPct"], 100.0*memFree/memMax)
 	}
-	return fmt.Sprintf("Hi %s 🤖 !%s", wm.sender, res)
+	res = res + "</ul>"
+	return fmt.Sprintf("Hi %s 🤖 !\n\n	%s", wm.sender, res)
 }
 
 // /help handler

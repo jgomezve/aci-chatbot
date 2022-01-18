@@ -26,7 +26,8 @@ type WebexInterface interface {
 	DeleteWebhook(name, tUrl, id string) error
 	CreateWebhook(name, url, resource, event string) error
 	GetPersonInformation(id string) (WebexPeople, error)
-	GetMessages(roomId string, max int) ([]WebexMessage, error)
+	GetMessages(roomId string, max int, filter ...string) ([]WebexMessage, error)
+	GetMessageById(id string) (WebexMessage, error)
 }
 
 type WebexClient struct {
@@ -173,9 +174,13 @@ func (wbx *WebexClient) GetPersonInformation(id string) (WebexPeople, error) {
 	return result.People[0], nil
 }
 
-func (wbx *WebexClient) GetMessages(roomId string, max int) ([]WebexMessage, error) {
+func (wbx *WebexClient) GetMessages(roomId string, max int, filter ...string) ([]WebexMessage, error) {
 	var result WebexMessagesReply
-	url := "/v1/messages?" + "roomId=" + roomId + "&max=" + fmt.Sprint(max)
+	url := fmt.Sprintf("/v1/messages?roomId=%s&max=%d", roomId, max)
+
+	for _, f := range filter {
+		url = url + fmt.Sprintf("&%s", f)
+	}
 
 	req, err := wbx.makeCall(http.MethodGet, url, nil)
 	if err != nil {
@@ -190,6 +195,25 @@ func (wbx *WebexClient) GetMessages(roomId string, max int) ([]WebexMessage, err
 	}
 
 	return result.Messages, nil
+}
+
+func (wbx *WebexClient) GetMessageById(id string) (WebexMessage, error) {
+	var result WebexMessage
+	url := fmt.Sprintf("/v1/messages/%s", id)
+
+	req, err := wbx.makeCall(http.MethodGet, url, nil)
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return result, err
+	}
+
+	err = wbx.doCall(req, &result)
+	if err != nil {
+		log.Println("Error: ", err)
+		return result, err
+	}
+
+	return result, nil
 }
 
 func (wbx *WebexClient) GetRoomIds() ([]WebexRoom, error) {

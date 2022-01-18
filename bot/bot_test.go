@@ -179,8 +179,8 @@ func TestWebHookHanlderGeneral(t *testing.T) {
 		wmc.SetDefaultFunctions()
 		amc := apic.ApicMockClient
 		amc.SetDefaultFunctions()
-		wmc.GetMessagesF = func(roomId string, max int) ([]webex.WebexMessage, error) {
-			return []webex.WebexMessage{{}}, errors.New("Generic Webex error")
+		wmc.GetMessageByIdF = func(id string) (webex.WebexMessage, error) {
+			return webex.WebexMessage{}, errors.New("Generic Webex Error")
 		}
 		b, _ := NewBot(&wmc, &amc, "http://test_bot.com")
 		reqB := webex.WebexWebhook{
@@ -203,8 +203,8 @@ func TestWebHookHanlderGeneral(t *testing.T) {
 		wmc.SetDefaultFunctions()
 		amc := apic.ApicMockClient
 		amc.SetDefaultFunctions()
-		wmc.GetMessagesF = func(roomId string, max int) ([]webex.WebexMessage, error) {
-			return []webex.WebexMessage{{Text: "/cpu", PersonId: "BotId"}}, nil
+		wmc.GetMessageByIdF = func(id string) (webex.WebexMessage, error) {
+			return webex.WebexMessage{Text: "/cpu", PersonId: "BotId"}, nil
 		}
 		wmc.GetBotDetailsF = func() (webex.WebexPeople, error) {
 			return webex.WebexPeople{Id: "BotId"}, nil
@@ -232,8 +232,8 @@ func TestWebHookHanlderCpuCommand(t *testing.T) {
 		wmc.SetDefaultFunctions()
 		amc := apic.ApicMockClient
 		amc.SetDefaultFunctions()
-		wmc.GetMessagesF = func(roomId string, max int) ([]webex.WebexMessage, error) {
-			return []webex.WebexMessage{{Text: "/cpu"}}, nil
+		wmc.GetMessageByIdF = func(id string) (webex.WebexMessage, error) {
+			return webex.WebexMessage{Text: "/cpu"}, nil
 		}
 		b, _ := NewBot(&wmc, &amc, "http://test_bot.com")
 		reqB := webex.WebexWebhook{
@@ -259,8 +259,8 @@ func TestWebHookHanlderCpuCommand(t *testing.T) {
 		wmc.SetDefaultFunctions()
 		amc := apic.ApicMockClient
 		amc.SetDefaultFunctions()
-		wmc.GetMessagesF = func(roomId string, max int) ([]webex.WebexMessage, error) {
-			return []webex.WebexMessage{{Text: "/cpu"}}, nil
+		wmc.GetMessageByIdF = func(id string) (webex.WebexMessage, error) {
+			return webex.WebexMessage{Text: "/cpu"}, nil
 		}
 		b, _ := NewBot(&wmc, &amc, "http://test_bot.com")
 		reqB := webex.WebexWebhook{
@@ -280,5 +280,23 @@ func TestWebHookHanlderCpuCommand(t *testing.T) {
 		equals(t, response.Code, http.StatusOK)
 		expectedMessage := "Hi  🤖 !. I could not reach the APIC... Are there any issues?"
 		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+}
+
+func TestUtils(t *testing.T) {
+	t.Run("cleanCommand - No additional spaces", func(t *testing.T) {
+
+		s := cleanCommand("test-bot", "/ep AA:AA:AA:AA:AA:AA test-bot")
+		equals(t, s, "/ep AA:AA:AA:AA:AA:AA")
+	})
+	t.Run("cleanCommand - Additional spaces & Bot at the end", func(t *testing.T) {
+
+		s := cleanCommand("test-bot", "   /ep   AA:AA:AA:AA:AA:AA   test-bot  ")
+		equals(t, s, "/ep AA:AA:AA:AA:AA:AA")
+	})
+	t.Run("cleanCommand - Additional spaces & Bot at the beginning", func(t *testing.T) {
+
+		s := cleanCommand("test-bot", "test-bot  /ep   AA:AA:AA:AA:AA:AA  ")
+		equals(t, s, "/ep AA:AA:AA:AA:AA:AA")
 	})
 }

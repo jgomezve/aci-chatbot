@@ -37,3 +37,14 @@ func parseWebHook(wh *webex.WebexWebhook, r *http.Request) error {
 	}
 	return nil
 }
+
+func cleanCommand(name string, text string) string {
+	var cleaned []string
+	for _, w := range strings.Split(strings.TrimSpace(text), " ") {
+		if w != name && w != "" {
+			cleaned = append(cleaned, w)
+		}
+	}
+
+	return strings.Join(cleaned, " ")
+}

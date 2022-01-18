@@ -166,11 +166,13 @@ func cpuCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 // /help handler
 func helpCommand(cmd map[string]Command) Callback {
 	return func(a apic.ApicInterface, m Message, wm WebexMessage) string {
-		help := fmt.Sprintf("Hello %s, How can I help you?\n\n", wm.sender)
+		res := fmt.Sprintf("Hello %s, How can I help you?\n\n", wm.sender)
+		res = res + "<ul>"
 		for key, value := range cmd {
-			help = help + "\t" + key + "->" + value.help + "\n"
+			res = res + fmt.Sprintf("<li><code>%s</code> -> %s</li>", key, value.help)
 		}
-		return help
+		res = res + "<ul>"
+		return res
 	}
 }
 
@@ -215,22 +217,23 @@ func webhookHandler(wbx webex.WebexInterface, ap apic.ApicInterface, cmd map[str
 			return
 		}
 		// Retrieve the last message, it should not have been written by the bot
-		messages, err := wbx.GetMessages(wh.Data.RoomId, 1)
+		message, err := wbx.GetMessageById(wh.Data.Id)
 		if err != nil {
-			log.Printf("failed trying to retreive the last message. Error %s", err)
+			log.Printf("failed trying to retrieve the last message. Error %s", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		// Is the message send from someone who is not the bot
-		if messages[0].PersonId != b.Id {
+		if message.PersonId != b.Id {
 			// Get sender personal information
-			sender, _ := wbx.GetPersonInformation(messages[0].PersonId)
+			sender, _ := wbx.GetPersonInformation(message.PersonId)
 			found := false
 			// Check which command was sent in the webex room
+			messageText := cleanCommand(b.DisplayName, message.Text)
 			for _, element := range cmd {
-				if MatchCommand(messages[0].Text, element.regex) {
+				if MatchCommand(messageText, element.regex) {
 					// Send message back the text is returned from the commandHandler
-					wbx.SendMessageToRoom(element.callback(ap, Message{cmd: messages[0].Text}, WebexMessage{sender: sender.NickName}), wh.Data.RoomId)
+					wbx.SendMessageToRoom(element.callback(ap, Message{cmd: messageText}, WebexMessage{sender: sender.NickName}), wh.Data.RoomId)
 					found = true
 					w.WriteHeader(http.StatusOK)
 					return
@@ -238,7 +241,7 @@ func webhookHandler(wbx webex.WebexInterface, ap apic.ApicInterface, cmd map[str
 			}
 			// If command sent does not match anything, send back the help menu
 			if !found {
-				wbx.SendMessageToRoom(cmd["/help"].callback(ap, Message{cmd: messages[0].Text}, WebexMessage{sender: sender.NickName}), wh.Data.RoomId)
+				wbx.SendMessageToRoom(cmd["/help"].callback(ap, Message{cmd: messageText}, WebexMessage{sender: sender.NickName}), wh.Data.RoomId)
 				w.WriteHeader(http.StatusOK)
 				return
 			}

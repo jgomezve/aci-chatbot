@@ -3,8 +3,10 @@
 package apic
 
 type ApicClientMocks struct {
-	GetProcEntityF func() ([]ApicMoAttributes, error)
-	GetEnpointF    func(mac string) []ApicMoAttributes
+	GetProcEntityF          func() ([]ApicMoAttributes, error)
+	GetEnpointF             func(mac string) []ApicMoAttributes
+	GetFabricInformationF   func() (FabricInformation, error)
+	GetEndpointInformationF func(m string) ([]EndpointInformation, error)
 }
 
 // TODO: check if this approach is valid
@@ -16,8 +18,8 @@ var (
 func (ac *ApicClientMocks) SetDefaultFunctions() {
 	ac.GetProcEntityF = func() ([]ApicMoAttributes, error) {
 		procs := []ApicMoAttributes{}
-		procs = append(procs, ApicMoAttributes{"dn": "abc", "cpuPct": "50", "memFree": "0"})
-		procs = append(procs, ApicMoAttributes{"dn": "def", "cpuPct": "40", "memFree": "10"})
+		procs = append(procs, ApicMoAttributes{"dn": "topology/pod-1/node-1/sys/proc", "cpuPct": "50", "memFree": "4000", "maxMemAlloc": "6000"})
+		procs = append(procs, ApicMoAttributes{"dn": "topology/pod-1/node-2/sys/proc", "cpuPct": "40", "memFree": "60", "maxMemAlloc": "100"})
 		return procs, nil
 	}
 
@@ -25,12 +27,24 @@ func (ac *ApicClientMocks) SetDefaultFunctions() {
 		eps := []ApicMoAttributes{}
 		return eps
 	}
+
+	ac.GetFabricInformationF = func() (FabricInformation, error) {
+		return FabricInformation{Name: "Test Fabric", Health: "95"}, nil
+	}
+
+	ac.GetEndpointInformationF = func(m string) ([]EndpointInformation, error) {
+		return []EndpointInformation{}, nil
+	}
 }
 
 func (ac *ApicClientMocks) GetProcEntity() ([]ApicMoAttributes, error) {
 	return ac.GetProcEntityF()
 }
 
-func (ac *ApicClientMocks) GetEnpoint(mac string) []ApicMoAttributes {
-	return ac.GetEnpointF(mac)
+func (ac *ApicClientMocks) GetFabricInformation() (FabricInformation, error) {
+	return ac.GetFabricInformationF()
+}
+
+func (ac *ApicClientMocks) GetEndpointInformation(m string) ([]EndpointInformation, error) {
+	return ac.GetEndpointInformationF(m)
 }

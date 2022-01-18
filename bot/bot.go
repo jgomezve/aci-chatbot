@@ -166,11 +166,13 @@ func cpuCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 // /help handler
 func helpCommand(cmd map[string]Command) Callback {
 	return func(a apic.ApicInterface, m Message, wm WebexMessage) string {
-		help := fmt.Sprintf("Hello %s, How can I help you?\n\n", wm.sender)
+		res := fmt.Sprintf("Hello %s, How can I help you?\n\n", wm.sender)
+		res = res + "<ul>"
 		for key, value := range cmd {
-			help = help + "\t" + key + "->" + value.help + "\n"
+			res = res + fmt.Sprintf("<li><code>%s</code> -> %s</li>", key, value.help)
 		}
-		return help
+		res = res + "<ul>"
+		return res
 	}
 }
 

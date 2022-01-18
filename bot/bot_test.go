@@ -282,3 +282,21 @@ func TestWebHookHanlderCpuCommand(t *testing.T) {
 		equals(t, wmc.LastMsgSent, expectedMessage)
 	})
 }
+
+func TestUtils(t *testing.T) {
+	t.Run("cleanCommand - No additional spaces", func(t *testing.T) {
+
+		s := cleanCommand("test-bot", "/ep AA:AA:AA:AA:AA:AA test-bot")
+		equals(t, s, "/ep AA:AA:AA:AA:AA:AA")
+	})
+	t.Run("cleanCommand - Additional spaces & Bot at the end", func(t *testing.T) {
+
+		s := cleanCommand("test-bot", "   /ep   AA:AA:AA:AA:AA:AA   test-bot  ")
+		equals(t, s, "/ep AA:AA:AA:AA:AA:AA")
+	})
+	t.Run("cleanCommand - Additional spaces & Bot at the beginning", func(t *testing.T) {
+
+		s := cleanCommand("test-bot", "test-bot  /ep   AA:AA:AA:AA:AA:AA  ")
+		equals(t, s, "/ep AA:AA:AA:AA:AA:AA")
+	})
+}

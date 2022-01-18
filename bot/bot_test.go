@@ -179,7 +179,7 @@ func TestWebHookHanlderGeneral(t *testing.T) {
 		wmc.SetDefaultFunctions()
 		amc := apic.ApicMockClient
 		amc.SetDefaultFunctions()
-		wmc.GetMessagesF = func(roomId string, max int) ([]webex.WebexMessage, error) {
+		wmc.GetMessagesF = func(roomId string, max int, filter ...string) ([]webex.WebexMessage, error) {
 			return []webex.WebexMessage{{}}, errors.New("Generic Webex error")
 		}
 		b, _ := NewBot(&wmc, &amc, "http://test_bot.com")
@@ -203,7 +203,7 @@ func TestWebHookHanlderGeneral(t *testing.T) {
 		wmc.SetDefaultFunctions()
 		amc := apic.ApicMockClient
 		amc.SetDefaultFunctions()
-		wmc.GetMessagesF = func(roomId string, max int) ([]webex.WebexMessage, error) {
+		wmc.GetMessagesF = func(roomId string, max int, filter ...string) ([]webex.WebexMessage, error) {
 			return []webex.WebexMessage{{Text: "/cpu", PersonId: "BotId"}}, nil
 		}
 		wmc.GetBotDetailsF = func() (webex.WebexPeople, error) {
@@ -232,7 +232,7 @@ func TestWebHookHanlderCpuCommand(t *testing.T) {
 		wmc.SetDefaultFunctions()
 		amc := apic.ApicMockClient
 		amc.SetDefaultFunctions()
-		wmc.GetMessagesF = func(roomId string, max int) ([]webex.WebexMessage, error) {
+		wmc.GetMessagesF = func(roomId string, max int, filter ...string) ([]webex.WebexMessage, error) {
 			return []webex.WebexMessage{{Text: "/cpu"}}, nil
 		}
 		b, _ := NewBot(&wmc, &amc, "http://test_bot.com")
@@ -259,7 +259,7 @@ func TestWebHookHanlderCpuCommand(t *testing.T) {
 		wmc.SetDefaultFunctions()
 		amc := apic.ApicMockClient
 		amc.SetDefaultFunctions()
-		wmc.GetMessagesF = func(roomId string, max int) ([]webex.WebexMessage, error) {
+		wmc.GetMessagesF = func(roomId string, max int, filter ...string) ([]webex.WebexMessage, error) {
 			return []webex.WebexMessage{{Text: "/cpu"}}, nil
 		}
 		b, _ := NewBot(&wmc, &amc, "http://test_bot.com")

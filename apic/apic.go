@@ -276,7 +276,6 @@ func (client *ApicClient) doCall(req *http.Request, res interface{}) error {
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
-		fmt.Println(req.URL.Path)
 		return errors.New("unable to read the response body")
 	}
 
@@ -285,7 +284,6 @@ func (client *ApicClient) doCall(req *http.Request, res interface{}) error {
 	}
 
 	if err = json.Unmarshal(body, &res); err != nil {
-		fmt.Println(req.URL.Path)
 		// TODO: Check error message
 		return errors.New("unable to read the response body")
 	}

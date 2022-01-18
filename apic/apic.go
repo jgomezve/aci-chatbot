@@ -265,6 +265,7 @@ func (client *ApicClient) makeCall(m string, url string, p io.Reader) (*http.Req
 }
 
 func (client *ApicClient) doCall(req *http.Request, res interface{}) error {
+
 	resp, err := client.httpClient.Do(req)
 	if err != nil {
 		return errors.New("unable to send the HTTP request")

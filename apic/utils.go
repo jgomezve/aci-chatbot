@@ -1,7 +1,6 @@
 package apic
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -67,7 +66,6 @@ func GetRn(dn string, rnId string) string {
 
 func getPath(tdn string) map[string]string {
 	path := make(map[string]string)
-	fmt.Println(tdn)
 	if strings.Contains(tdn, "protpaths") && !strings.Contains(tdn, "tunnel") {
 		path["pod"] = GetRn(tdn, "pod")
 		path["type"] = "vPC"
@@ -76,7 +74,6 @@ func getPath(tdn string) map[string]string {
 		return path
 	} else if strings.Contains(tdn, "pathep") && !strings.Contains(tdn, "tunnel") {
 		pathEp := GetRn(tdn, "pathep")
-		fmt.Println(pathEp)
 		if !strings.Contains(pathEp, "tunnel") && strings.Contains(pathEp, "/") {
 			path["pod"] = GetRn(tdn, "pod")
 			path["type"] = "Access"

@@ -261,3 +261,131 @@ func TestGetFabricInformation(t *testing.T) {
 		equals(t, len(info.Leafs), 1)
 	})
 }
+
+func TestGetEndpointInformation(t *testing.T) {
+
+	Client = &mocks.MockClient{}
+	login := `{
+		"totalCount": "1",
+		"imdata": [
+			{
+				"aaaLogin": {
+					"attributes": {
+						"token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InJqcmRjazBuNW"
+					}
+				}
+			}
+		]
+	}`
+	ep := `{
+		"totalCount": "1",
+		"imdata": [
+			{
+				"fvCEp": {
+					"attributes": {
+						"dn": "uni/tn-test_tenant/ap-Test-AP/epg-test_epg/cep-00:50:56:96:A0:D3",
+						"mac": "00:50:56:96:A0:D3"
+					}
+				}
+			}
+		]
+	}`
+	ips := `{
+		"totalCount": "1",
+		"imdata": [
+			{
+				"fvCEp": {
+					"attributes": {
+						"dn": "uni/tn-test_tenant/ap-Test-AP/epg-test_epg/cep-00:50:56:96:A0:D3",
+						"mac": "00:50:56:96:4B:59"
+					},
+					"children": [
+						{
+							"fvIp": {
+								"attributes": {
+									"addr": "172.20.206.132"
+								}
+							}
+						},
+						{
+							"fvIp": {
+								"attributes": {
+									"addr": "172.20.206.133"
+								}
+							}
+						}
+					]
+				}
+			}
+		]
+	}`
+	paths := `{
+		"totalCount": "1",
+		"imdata": [
+			{
+				"fvCEp": {
+					"attributes": {
+						"dn": "uni/tn-test_tenant/ap-Test-AP/epg-test_epg/cep-00:50:56:96:A0:D3",
+						"mac": "00:50:56:96:4B:59"
+					},
+					"children": [
+						{
+							"fvRsCEpToPathEp": {
+								"attributes": {
+									"tDn": "topology/pod-2/protpaths-1201-1202/pathep-[VPC_TEST_IPG]"
+								}
+							}
+						},
+						{
+							"fvRsCEpToPathEp": {
+								"attributes": {
+									"tDn": "topology/pod-2/paths-1201/pathep-[PC_TEST_IPG]"
+								}
+							}
+						},
+						{
+							"fvRsCEpToPathEp": {
+								"attributes": {
+									"tDn": "topology/pod-2/paths-1202/pathep-[eth1/10]"
+								}
+							}
+						},
+						{
+							"fvRsCEpToPathEp": {
+								"attributes": {
+									"tDn": "topology/pod-2/paths/pathep-[tunnel123]"
+								}
+							}
+						}
+					]
+				}
+			}
+		]
+	}`
+	t.Run("Successfull Call", func(t *testing.T) {
+		mocks.GetDoFunc = func(req *http.Request) (*http.Response, error) {
+			if strings.Contains(req.URL.Path, "aaaLogin") {
+				return &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(login)))}, nil
+			} else if strings.Contains(req.URL.Path, "/api/node/class/fvCEp.json") && strings.Contains(req.URL.RawQuery, "query-target-filter=eq(fvCEp.mac") {
+				return &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(ep)))}, nil
+			} else if strings.Contains(req.URL.Path, "/api/node/class/fvCEp.json") && strings.Contains(req.URL.RawQuery, "rsp-subtree-class=fvIp") {
+				return &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(ips)))}, nil
+			} else if strings.Contains(req.URL.Path, "/api/node/class/fvCEp.json") && strings.Contains(req.URL.RawQuery, "rsp-subtree-class=fvRsCEpToPathEp") {
+				return &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(paths)))}, nil
+			}
+			return nil, nil
+		}
+		clt, _ := NewApicClient("http://mocking.com", "admin", "admin", SetTimeout(8))
+		info, _ := clt.GetEndpointInformation("00:50:56:96:A0:D3")
+		equals(t, info[0].Mac, "00:50:56:96:A0:D3")
+		equals(t, info[0].Tenant, "test_tenant")
+		equals(t, info[0].App, "Test-AP")
+		equals(t, info[0].Epg, "test_epg")
+		equals(t, len(info[0].Ips), 2)
+		equals(t, info[0].Ips, []string{"172.20.206.132", "172.20.206.133"})
+		equals(t, len(info[0].Location), 3)
+		equals(t, info[0].Location[0], map[string]string{"nodes": "1201-1202", "pod": "2", "port": "[VPC_TEST_IPG]", "type": "vPC"})
+		equals(t, info[0].Location[1], map[string]string{"nodes": "1201", "pod": "2", "port": "[PC_TEST_IPG]", "type": "PC"})
+		equals(t, info[0].Location[2], map[string]string{"nodes": "1202", "pod": "2", "port": "[eth1/10]", "type": "Access"})
+	})
+}

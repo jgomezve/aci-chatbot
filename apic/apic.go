@@ -45,6 +45,7 @@ type ApicInterface interface {
 	GetProcEntity() ([]ApicMoAttributes, error)
 	GetFabricInformation() (FabricInformation, error)
 	GetEndpointInformation(m string) ([]EndpointInformation, error)
+	GetFabricNeighbors(nd string) (map[string][]string, error)
 }
 
 type ApicClient struct {
@@ -113,6 +114,28 @@ func (client *ApicClient) login() error {
 	r := getApicManagedObjects(result, "aaaLogin")
 	client.tkn = r[0]["token"]
 	return nil
+}
+
+func (client *ApicClient) GetFabricNeighbors(nd string) (map[string][]string, error) {
+
+	cdpN, err := client.getApicClass("cdpAdjEp")
+	if err != nil {
+		return nil, err
+	}
+	lldpN, err := client.getApicClass("lldpAdjEp")
+	if err != nil {
+		return nil, err
+	}
+	neighMap := make(map[string][]string)
+
+	for _, n := range append(cdpN, lldpN...) {
+		node := GetRn(n["dn"], "node")
+		nodeIface := fmt.Sprintf("%s:%s", node, GetRn(n["dn"], "if"))
+		if !stringInSlice(nodeIface, neighMap[n["sysName"]]) && (nd == node || nd == "") && n["sysName"] != "" {
+			neighMap[n["sysName"]] = append(neighMap[n["sysName"]], nodeIface)
+		}
+	}
+	return neighMap, nil
 }
 
 func (client *ApicClient) GetFabricInformation() (FabricInformation, error) {

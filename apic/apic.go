@@ -46,7 +46,7 @@ type ApicInterface interface {
 	GetFabricInformation() (FabricInformation, error)
 	GetEndpointInformation(m string) ([]EndpointInformation, error)
 	GetFabricNeighbors(nd string) (map[string][]string, error)
-	GetLastestFaults(c string) ([]ApicMoAttributes, error)
+	GetLatestFaults(c string) ([]ApicMoAttributes, error)
 }
 
 type ApicClient struct {
@@ -117,7 +117,7 @@ func (client *ApicClient) login() error {
 	return nil
 }
 
-func (client *ApicClient) GetLastestFaults(c string) ([]ApicMoAttributes, error) {
+func (client *ApicClient) GetLatestFaults(c string) ([]ApicMoAttributes, error) {
 
 	faults, err := client.getApicClass("faultInst", "order-by=faultInst.lastTransition|desc", fmt.Sprintf("page-size=%s", c))
 	if err != nil {

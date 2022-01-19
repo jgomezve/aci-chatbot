@@ -95,7 +95,7 @@ func faultCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 	if faultsInt > 10 || faults == "" {
 		faults = "10"
 	}
-	info, err := c.GetLastestFaults(faults)
+	info, err := c.GetLatestFaults(faults)
 
 	if err != nil {
 		log.Printf("Error while connecting to the Apic. Err: %s", err)

@@ -67,6 +67,8 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 	bot.addCommand("/ep", "Get APIC Endpoint Information. Usage /ep <ep_mac>", "\\/ep ([[:xdigit:]]{2}[:.-]?){5}[[:xdigit:]]{2}$", endpointCommand)
 	log.Println("Adding `/neigh` command")
 	bot.addCommand("/neigh", "Get Fabric Topology Information", "\\/neigh", neighCommand)
+	log.Println("Adding `/fault` command")
+	bot.addCommand("/fault", "Get Fabric latest faults", "\\/fault", faultCommand)
 	log.Println("Adding `/help` command")
 	bot.addCommand("/help", "Chatbot Help", "\\/help", helpCommand(bot.commands))
 	log.Println("Setting up Webex Webhook")
@@ -80,6 +82,43 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 }
 
 // Command Handlers
+// /fault handler
+func faultCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
+	res := ""
+	sevMap := map[string]string{"critical": "📛", "major": "☢️", "minor": "⚠️", "warning": "🌀", "cleared": "❎"}
+	lcMap := map[string]string{"soaking": "♻️", "retaining": "✅", "raised": "❌", "soaking-clearing": "♻️", "raised-clearing": "♻️"}
+	faults := splitNeighCommand(m.cmd)
+	faultsInt, err := strconv.Atoi(faults)
+	if err != nil {
+		return fmt.Sprintf("Hi %s 🤖 !\n Sorry.. You did not enter a valid number", wm.sender)
+	}
+	if faultsInt > 10 || faults == "" {
+		faults = "10"
+	}
+	info, err := c.GetLastestFaults(faults)
+
+	if err != nil {
+		log.Printf("Error while connecting to the Apic. Err: %s", err)
+		return fmt.Sprintf("Hi %s 🤖 !. I could not reach the APIC... Are there any issues?", wm.sender)
+	}
+
+	res += fmt.Sprintf("\nThese are the latest %s faults in the the Fabric : \n\n", faults)
+
+	res += "<ul>"
+	for _, f := range info {
+		res += fmt.Sprintf("<li><strong>%s</strong> - <em>%s</em>", f["code"], f["dn"])
+		res += "<ul>"
+		res += fmt.Sprintf("<li>%s</li>", f["descr"])
+		res += fmt.Sprintf("<li><strong>Severity</strong>: %s %s</li>", f["severity"], sevMap[f["severity"]])
+		res += fmt.Sprintf("<li><strong>Current Lyfecycle</strong>: %s %s</li>", f["lc"], lcMap[f["lc"]])
+		res += fmt.Sprintf("<li><strong>Type</strong>: %s</li>", f["type"])
+		res += fmt.Sprintf("<li><strong>Created</strong>: %s</li>", f["created"])
+		res += "</ul>"
+	}
+	res += "</ul>"
+	return fmt.Sprintf("Hi %s 🤖 !\n\n%s", wm.sender, res)
+}
+
 // /neigh handler
 func neighCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 	res := ""

@@ -55,7 +55,7 @@ func main() {
 	if err != nil {
 		panic("APIC connection failed")
 	}
-	// Configure and start Bot server
+	//Configure and start Bot server
 	bot, err := bot.NewBot(&wbx, &apic, r.botUrl)
 
 	if err != nil {

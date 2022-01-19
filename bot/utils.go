@@ -23,7 +23,7 @@ func splitEpCommand(s string) map[string]string {
 	return cmd
 }
 
-// Is the command already clean here?
+// Is the command already clean here? TODO
 func splitNeighCommand(s string) string {
 	w := strings.Split(s, " ")
 	if len(w) == 1 {

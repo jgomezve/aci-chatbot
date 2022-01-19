@@ -46,6 +46,7 @@ type ApicInterface interface {
 	GetFabricInformation() (FabricInformation, error)
 	GetEndpointInformation(m string) ([]EndpointInformation, error)
 	GetFabricNeighbors(nd string) (map[string][]string, error)
+	GetLastestFaults(c string) ([]ApicMoAttributes, error)
 }
 
 type ApicClient struct {
@@ -114,6 +115,15 @@ func (client *ApicClient) login() error {
 	r := getApicManagedObjects(result, "aaaLogin")
 	client.tkn = r[0]["token"]
 	return nil
+}
+
+func (client *ApicClient) GetLastestFaults(c string) ([]ApicMoAttributes, error) {
+
+	faults, err := client.getApicClass("faultInst", "order-by=faultInst.lastTransition|desc", fmt.Sprintf("page-size=%s", c))
+	if err != nil {
+		return nil, err
+	}
+	return faults, nil
 }
 
 func (client *ApicClient) GetFabricNeighbors(nd string) (map[string][]string, error) {
@@ -254,10 +264,10 @@ func (client *ApicClient) getApicClass(n string, filter ...string) ([]ApicMoAttr
 
 	// TODO: How to improve this
 	if len(filter) > 0 {
-		url = url + "?"
+		url += "?"
 	}
 	for _, f := range filter {
-		url = url + f
+		url += "&" + f
 	}
 	req, err := client.makeCall(http.MethodGet, url, nil)
 

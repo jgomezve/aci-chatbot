@@ -51,7 +51,7 @@ func main() {
 	// Set up Webex Client
 	wbx := webex.NewWebexClient(r.webexToken)
 	//	Set up APIC Client
-	apic, err := apic.NewApicClient(r.apicUrl, r.apicUsr, r.apicPsw, apic.SetTimeout(5))
+	apic, err := apic.NewApicClient(r.apicUrl, r.apicUsr, r.apicPsw, apic.SetTimeout(10))
 	if err != nil {
 		panic("APIC connection failed")
 	}

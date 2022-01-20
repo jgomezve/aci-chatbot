@@ -47,6 +47,7 @@ type ApicInterface interface {
 	GetEndpointInformation(m string) ([]EndpointInformation, error)
 	GetFabricNeighbors(nd string) (map[string][]string, error)
 	GetLatestFaults(c string) ([]ApicMoAttributes, error)
+	GetLatestEvents(c string) ([]ApicMoAttributes, error)
 }
 
 type ApicClient struct {
@@ -115,6 +116,18 @@ func (client *ApicClient) login() error {
 	r := getApicManagedObjects(result, "aaaLogin")
 	client.tkn = r[0]["token"]
 	return nil
+}
+
+func (client *ApicClient) GetLatestEvents(c string) ([]ApicMoAttributes, error) {
+
+	events, err := client.getApicClass("aaaModLR", "order-by=aaaModLR.created|desc", fmt.Sprintf("page-size=%s", c))
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range events {
+		fmt.Println(e)
+	}
+	return events, nil
 }
 
 func (client *ApicClient) GetLatestFaults(c string) ([]ApicMoAttributes, error) {
@@ -301,7 +314,7 @@ func (client *ApicClient) doCall(req *http.Request, res interface{}) error {
 
 	resp, err := client.httpClient.Do(req)
 	if err != nil {
-		return errors.New("unable to send the HTTP request")
+		return err
 	}
 
 	// Why defer ?
@@ -309,7 +322,7 @@ func (client *ApicClient) doCall(req *http.Request, res interface{}) error {
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
-		return errors.New("unable to read the response body")
+		return err
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -318,7 +331,7 @@ func (client *ApicClient) doCall(req *http.Request, res interface{}) error {
 
 	if err = json.Unmarshal(body, &res); err != nil {
 		// TODO: Check error message
-		return errors.New("unable to read the response body")
+		return err
 	}
 	return nil
 }

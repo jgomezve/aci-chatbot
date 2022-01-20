@@ -69,6 +69,8 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 	bot.addCommand("/neigh", "Get Fabric Topology Information", "\\/neigh", neighCommand)
 	log.Println("Adding `/fault` command")
 	bot.addCommand("/fault", "Get Fabric latest faults", "\\/fault", faultCommand)
+	log.Println("Adding `/events` command")
+	bot.addCommand("/events", "Get Fabric latest events", "\\/events", eventCommand)
 	log.Println("Adding `/help` command")
 	bot.addCommand("/help", "Chatbot Help", "\\/help", helpCommand(bot.commands))
 	log.Println("Setting up Webex Webhook")
@@ -82,6 +84,41 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 }
 
 // Command Handlers
+// /event handler
+func eventCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
+	res := ""
+	indMap := map[string]string{"creation": "❇️", "modification": "🔄", "deletion": "🗑"}
+	events := splitNeighCommand(m.cmd)
+	eventsInt, err := strconv.Atoi(events)
+	if err != nil {
+		return fmt.Sprintf("Hi %s 🤖 !\n Sorry.. You did not enter a valid number", wm.sender)
+	}
+	if eventsInt > 10 || events == "" {
+		events = "10"
+	}
+	info, err := c.GetLatestEvents(events)
+
+	if err != nil {
+		log.Printf("Error while connecting to the Apic. Err: %s", err)
+		return fmt.Sprintf("Hi %s 🤖 !. I could not reach the APIC... Are there any issues?", wm.sender)
+	}
+
+	res += fmt.Sprintf("\nThese are the latest %s events in the the Fabric : \n\n", events)
+
+	res += "<ul>"
+	for _, f := range info {
+		res += fmt.Sprintf("<li><strong>%s</strong> - <em>%s</em>", f["code"], f["affected"])
+		res += "<ul>"
+		res += fmt.Sprintf("<li>%s</li>", f["descr"])
+		res += fmt.Sprintf("<li><strong>User</strong>: %s</li>", f["user"])
+		res += fmt.Sprintf("<li><strong>Type</strong>: %s %s</li>", f["ind"], indMap[f["ind"]])
+		res += fmt.Sprintf("<li><strong>Created</strong>: %s</li>", f["created"])
+		res += "</ul>"
+	}
+	res += "</ul>"
+	return fmt.Sprintf("Hi %s 🤖 !\n\n%s", wm.sender, res)
+}
+
 // /fault handler
 func faultCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 	res := ""

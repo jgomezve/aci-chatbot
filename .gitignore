@@ -4,3 +4,4 @@ env.sh
 *.html
 chatbot
 dev.env
+coverage/

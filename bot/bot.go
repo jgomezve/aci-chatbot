@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 )
 
@@ -64,6 +65,10 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 	bot.addCommand("/cpu", "Get APIC CPU Information", "\\/cpu", cpuCommand)
 	log.Println("Adding `/ep` command")
 	bot.addCommand("/ep", "Get APIC Endpoint Information. Usage /ep <ep_mac>", "\\/ep ([[:xdigit:]]{2}[:.-]?){5}[[:xdigit:]]{2}$", endpointCommand)
+	log.Println("Adding `/neigh` command")
+	bot.addCommand("/neigh", "Get Fabric Topology Information", "\\/neigh", neighCommand)
+	log.Println("Adding `/fault` command")
+	bot.addCommand("/fault", "Get Fabric latest faults", "\\/fault", faultCommand)
 	log.Println("Adding `/help` command")
 	bot.addCommand("/help", "Chatbot Help", "\\/help", helpCommand(bot.commands))
 	log.Println("Setting up Webex Webhook")
@@ -77,6 +82,84 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 }
 
 // Command Handlers
+// /fault handler
+func faultCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
+	res := ""
+	sevMap := map[string]string{"critical": "📛", "major": "☢️", "minor": "⚠️", "warning": "🌀", "cleared": "❎"}
+	lcMap := map[string]string{"soaking": "♻️", "retaining": "✅", "raised": "❌", "soaking-clearing": "♻️", "raised-clearing": "♻️"}
+	faults := splitNeighCommand(m.cmd)
+	faultsInt, err := strconv.Atoi(faults)
+	if err != nil {
+		return fmt.Sprintf("Hi %s 🤖 !\n Sorry.. You did not enter a valid number", wm.sender)
+	}
+	if faultsInt > 10 || faults == "" {
+		faults = "10"
+	}
+	info, err := c.GetLatestFaults(faults)
+
+	if err != nil {
+		log.Printf("Error while connecting to the Apic. Err: %s", err)
+		return fmt.Sprintf("Hi %s 🤖 !. I could not reach the APIC... Are there any issues?", wm.sender)
+	}
+
+	res += fmt.Sprintf("\nThese are the latest %s faults in the the Fabric : \n\n", faults)
+
+	res += "<ul>"
+	for _, f := range info {
+		res += fmt.Sprintf("<li><strong>%s</strong> - <em>%s</em>", f["code"], f["dn"])
+		res += "<ul>"
+		res += fmt.Sprintf("<li>%s</li>", f["descr"])
+		res += fmt.Sprintf("<li><strong>Severity</strong>: %s %s</li>", f["severity"], sevMap[f["severity"]])
+		res += fmt.Sprintf("<li><strong>Current Lyfecycle</strong>: %s %s</li>", f["lc"], lcMap[f["lc"]])
+		res += fmt.Sprintf("<li><strong>Type</strong>: %s</li>", f["type"])
+		res += fmt.Sprintf("<li><strong>Created</strong>: %s</li>", f["created"])
+		res += "</ul>"
+	}
+	res += "</ul>"
+	return fmt.Sprintf("Hi %s 🤖 !\n\n%s", wm.sender, res)
+}
+
+// /neigh handler
+func neighCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
+	res := ""
+	info, err := c.GetFabricNeighbors(splitNeighCommand(m.cmd))
+
+	// Sort by Neigh Name
+	keys := make([]string, 0, len(info))
+	for k := range info {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	if err != nil {
+		log.Printf("Error while connecting to the Apic. Err: %s", err)
+		return fmt.Sprintf("Hi %s 🤖 !. I could not reach the APIC... Are there any issues?", wm.sender)
+	}
+
+	if len(info) == 0 && splitNeighCommand(m.cmd) == "" {
+		return fmt.Sprintf("Hi %s 🤖 !\n It seems there are no Neighbors for <code>Node</code> %s", wm.sender, splitNeighCommand(m.cmd))
+	} else if len(info) == 0 && splitNeighCommand(m.cmd) != "" {
+		return fmt.Sprintf("Hi %s 🤖 !\n Sorry.. I could not discover the Topology of the Fabric", wm.sender)
+	}
+
+	if splitNeighCommand(m.cmd) == "" {
+		res += "\nThis is the Topology information of the Fabric : \n\n"
+	} else {
+		res += fmt.Sprintf("\nThese are the Neighbors of the Node <code>%s</code>: \n\n", splitNeighCommand(m.cmd))
+	}
+	res += "<ul>"
+
+	for _, k := range keys {
+		res += fmt.Sprintf("<li><strong>%s</strong>:\t", k)
+		for _, n := range info[k] {
+			res += fmt.Sprintf("%s   ", n)
+		}
+		res += "</li>"
+	}
+	res += "</ul>"
+	return fmt.Sprintf("Hi %s 🤖 !\n\n%s", wm.sender, res)
+}
+
 // /ep <ep_mac> handler
 func endpointCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 
@@ -169,7 +252,7 @@ func helpCommand(cmd map[string]Command) Callback {
 		res := fmt.Sprintf("Hello %s, How can I help you?\n\n", wm.sender)
 		res = res + "<ul>"
 		for key, value := range cmd {
-			res = res + fmt.Sprintf("<li><code>%s</code> -> %s</li>", key, value.help)
+			res = res + fmt.Sprintf("<li><code>%s</code>\t->\t%s</li>", key, value.help)
 		}
 		res = res + "<ul>"
 		return res

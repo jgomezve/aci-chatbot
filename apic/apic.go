@@ -45,6 +45,8 @@ type ApicInterface interface {
 	GetProcEntity() ([]ApicMoAttributes, error)
 	GetFabricInformation() (FabricInformation, error)
 	GetEndpointInformation(m string) ([]EndpointInformation, error)
+	GetFabricNeighbors(nd string) (map[string][]string, error)
+	GetLatestFaults(c string) ([]ApicMoAttributes, error)
 }
 
 type ApicClient struct {
@@ -113,6 +115,37 @@ func (client *ApicClient) login() error {
 	r := getApicManagedObjects(result, "aaaLogin")
 	client.tkn = r[0]["token"]
 	return nil
+}
+
+func (client *ApicClient) GetLatestFaults(c string) ([]ApicMoAttributes, error) {
+
+	faults, err := client.getApicClass("faultInst", "order-by=faultInst.lastTransition|desc", fmt.Sprintf("page-size=%s", c))
+	if err != nil {
+		return nil, err
+	}
+	return faults, nil
+}
+
+func (client *ApicClient) GetFabricNeighbors(nd string) (map[string][]string, error) {
+
+	cdpN, err := client.getApicClass("cdpAdjEp")
+	if err != nil {
+		return nil, err
+	}
+	lldpN, err := client.getApicClass("lldpAdjEp")
+	if err != nil {
+		return nil, err
+	}
+	neighMap := make(map[string][]string)
+
+	for _, n := range append(cdpN, lldpN...) {
+		node := GetRn(n["dn"], "node")
+		nodeIface := fmt.Sprintf("%s:%s", node, GetRn(n["dn"], "if"))
+		if !stringInSlice(nodeIface, neighMap[n["sysName"]]) && (nd == node || nd == "") && n["sysName"] != "" {
+			neighMap[n["sysName"]] = append(neighMap[n["sysName"]], nodeIface)
+		}
+	}
+	return neighMap, nil
 }
 
 func (client *ApicClient) GetFabricInformation() (FabricInformation, error) {
@@ -231,10 +264,10 @@ func (client *ApicClient) getApicClass(n string, filter ...string) ([]ApicMoAttr
 
 	// TODO: How to improve this
 	if len(filter) > 0 {
-		url = url + "?"
+		url += "?"
 	}
 	for _, f := range filter {
-		url = url + f
+		url += "&" + f
 	}
 	req, err := client.makeCall(http.MethodGet, url, nil)
 

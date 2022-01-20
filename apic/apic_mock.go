@@ -7,6 +7,8 @@ type ApicClientMocks struct {
 	GetEnpointF             func(mac string) []ApicMoAttributes
 	GetFabricInformationF   func() (FabricInformation, error)
 	GetEndpointInformationF func(m string) ([]EndpointInformation, error)
+	GetFabricNeighborsF     func(nd string) (map[string][]string, error)
+	GetLatestFaultsF        func(c string) ([]ApicMoAttributes, error)
 }
 
 // TODO: check if this approach is valid
@@ -47,4 +49,12 @@ func (ac *ApicClientMocks) GetFabricInformation() (FabricInformation, error) {
 
 func (ac *ApicClientMocks) GetEndpointInformation(m string) ([]EndpointInformation, error) {
 	return ac.GetEndpointInformationF(m)
+}
+
+func (ac *ApicClientMocks) GetFabricNeighbors(nd string) (map[string][]string, error) {
+	return ac.GetFabricNeighborsF(nd)
+}
+
+func (ac *ApicClientMocks) GetLatestFaults(c string) ([]ApicMoAttributes, error) {
+	return ac.GetLatestFaultsF(c)
 }

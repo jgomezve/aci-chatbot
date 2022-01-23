@@ -75,3 +75,7 @@ func (ac *ApicClientMocks) GetIp() string {
 func (ac *ApicClientMocks) GetToken() string {
 	return "aRanDoMtokEn"
 }
+
+func (ac *ApicClientMocks) Login() error {
+	return nil
+}

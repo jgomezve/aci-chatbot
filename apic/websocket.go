@@ -13,6 +13,7 @@ type ApicWebSocket struct {
 	ip  string
 	ws  *websocket.Conn
 	tkn string
+	dl  *websocket.Dialer
 }
 
 func NewApicWebSClient(ip string, token string) (*ApicWebSocket, error) {
@@ -25,9 +26,19 @@ func NewApicWebSClient(ip string, token string) (*ApicWebSocket, error) {
 		log.Printf("Error setting up the websocket connection . Error %s", err)
 		return nil, err
 	}
-	aws := ApicWebSocket{ip: ip, ws: wsc, tkn: token}
+	aws := ApicWebSocket{ip: ip, ws: wsc, tkn: token, dl: &d}
 
 	return &aws, nil
+}
+
+func (aws *ApicWebSocket) NewDial(token string) error {
+	ws, _, err := aws.dl.Dial(fmt.Sprintf("wss://10.49.208.146/socket%s", token), nil)
+	if err != nil {
+		log.Printf("Error setting up the websocket connection . Error %s", err)
+		return err
+	}
+	aws.ws = ws
+	return nil
 }
 
 func (aws *ApicWebSocket) ReadSocket(data interface{}) error {

@@ -78,6 +78,7 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 
 	bot.commands = make(map[string]Command)
 	bot.wsSubcription = make(map[string]SocketSubscription)
+
 	log.Println("Adding `/info` command")
 	bot.addCommand("/info", "Get Fabric Information", "\\/info", infoCommand)
 	log.Println("Adding `/cpu` command")
@@ -92,6 +93,7 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 	bot.addCommand("/websocket", "Subscribe to Fabric events", "\\/websocket", websocketCommand(bot.wsSubcription))
 	log.Println("Adding `/help` command")
 	bot.addCommand("/help", "Chatbot Help", "\\/help", helpCommand(bot.commands))
+
 	log.Println("Setting up Webex Webhook")
 	if err = bot.setupWebhook(); err != nil {
 		log.Printf("could not setup the webhook. Err %s", err)
@@ -449,9 +451,22 @@ func readWebsocket(b *Bot) {
 	}
 }
 
+func refreshApicClient(ap apic.ApicInterface, apw apic.ApicWebSocket, t int) {
+	ticker := time.NewTicker(time.Duration(t) * time.Second)
+	defer ticker.Stop()
+	for {
+		<-ticker.C
+		log.Printf("Refreshing REST APIC Token\n")
+		ap.Login()
+		log.Printf("Refreshing Websocket APIC Token")
+		apw.NewDial(ap.GetToken())
+	}
+}
+
 func (b *Bot) SetupWebSocket() error {
 
 	b.wsck, _ = apic.NewApicWebSClient(b.apic.GetIp(), b.apic.GetToken())
+	go refreshApicClient(b.apic, *b.wsck, 180)
 	go readWebsocket(b)
 	go refreshWebSocket(b)
 	return nil

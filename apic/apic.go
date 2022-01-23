@@ -10,7 +10,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -43,6 +42,7 @@ type HttpClient interface {
 }
 
 type ApicInterface interface {
+	Login() error
 	GetIp() string
 	GetToken() string
 	GetProcEntity() ([]ApicMoAttributes, error)
@@ -107,7 +107,7 @@ func NewApicClient(url, usr, pwd string, options ...Option) (*ApicClient, error)
 		opt(&client)
 	}
 
-	if err := client.login(); err != nil {
+	if err := client.Login(); err != nil {
 		return nil, err
 	}
 	return &client, nil
@@ -122,7 +122,7 @@ func (client *ApicClient) GetToken() string {
 }
 
 // TODO: Use a generic version of _getApicClass_ that uses all the HTTP Verbs
-func (client *ApicClient) login() error {
+func (client *ApicClient) Login() error {
 
 	var result map[string]interface{}
 	loginPayload := fmt.Sprintf(`{"aaaUser":{"attributes":{"name":"%s","pwd":"%s"}}}`, client.usr, client.pwd)
@@ -139,39 +139,7 @@ func (client *ApicClient) login() error {
 	r := getApicManagedObjects(result, "aaaLogin")
 	client.tkn = r[0]["token"]
 
-	time, err := strconv.Atoi(r[0]["refreshTimeoutSeconds"])
-	if err != nil {
-		log.Println("Error: ", err)
-		return err
-	}
-	go refreshToken(client, time)
 	return nil
-}
-
-func refreshToken(client *ApicClient, t int) error {
-	var result map[string]interface{}
-	loginPayload := fmt.Sprintf(`{"aaaUser":{"attributes":{"name":"%s","pwd":"%s"}}}`, client.usr, client.pwd)
-
-	ticker := time.NewTicker(time.Duration(t) * time.Second)
-	defer ticker.Stop()
-	for {
-
-		<-ticker.C
-		log.Println("Refreshing Token...")
-		req, err := client.makeCall(http.MethodPost, "/api/aaaLogin.json", strings.NewReader(loginPayload))
-		if err != nil {
-			return err
-		}
-
-		if err = client.doCall(req, &result); err != nil {
-			log.Println("Error: ", err)
-			return err
-		}
-
-		r := getApicManagedObjects(result, "aaaLogin")
-		client.tkn = r[0]["token"]
-	}
-
 }
 
 func (client *ApicClient) WsSubcriptionRefresh(id string) error {
@@ -190,7 +158,7 @@ func (client *ApicClient) WsSubcriptionRefresh(id string) error {
 
 func (client *ApicClient) WsClassSubscription(c string) (string, error) {
 	var result map[string]interface{}
-	req, err := client.makeCall(http.MethodGet, fmt.Sprintf("/api/class/%s.json?subscription=yes&refresh-timeout=1200?query-target=subtree", c), nil)
+	req, err := client.makeCall(http.MethodGet, fmt.Sprintf("/api/class/%s.json?subscription=yes&refresh-timeout=120?query-target=subtree", c), nil)
 
 	if err != nil {
 		return "", err
@@ -374,7 +342,6 @@ func (client *ApicClient) makeCall(m string, url string, p io.Reader) (*http.Req
 	}
 
 	req.Header.Add("Accept", "application/json")
-	// req.Header.Add("Content-Type", "application/json")
 	if url != "/api/aaaLogin.json" {
 		req.Header.Set("Cookie", "APIC-cookie="+client.tkn)
 	}

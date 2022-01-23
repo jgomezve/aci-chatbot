@@ -36,6 +36,7 @@ type Command struct {
 type Bot struct {
 	wbx      webex.WebexInterface
 	apic     apic.ApicInterface
+	wsck     *websocket.Conn
 	server   *http.Server
 	router   *http.ServeMux
 	url      string
@@ -239,21 +240,23 @@ func (b *Bot) SetupWebSocket() {
 	if err != nil {
 		log.Println("[DIAL]", err)
 	}
-	id, _ := b.apic.WssTenantSubscription()
-	log.Printf("Subscription ID: %s\n", id)
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		for {
-			_, message, err := wsc.ReadMessage()
-			if err != nil {
-				log.Println("read:", err)
-				return
-			}
-			log.Printf("recv: %s", message)
-			b.wbx.SendMessageToRoom("Something happened with a Tenant", "Y2lzY29zcGFyazovL3VzL1JPT00vZjRmZWZjZDAtNjI3NS0xMWVjLThiMTQtMDEyYWYxZGQ1M2Vl")
-		}
-	}()
+	log.Printf("Setting up Websocket...")
+	b.wsck = wsc
+	// id, _ := b.apic.WssTenantSubscription()
+	// log.Printf("Subscription ID: %s\n", id)
+	// done := make(chan struct{})
+	// go func() {
+	// 	defer close(done)
+	// 	for {
+	// 		_, message, err := wsc.ReadMessage()
+	// 		if err != nil {
+	// 			log.Println("read:", err)
+	// 			return
+	// 		}
+	// 		log.Printf("recv: %s", message)
+	// 		b.wbx.SendMessageToRoom("Something happened with a Tenant", "Y2lzY29zcGFyazovL3VzL1JPT00vZjRmZWZjZDAtNjI3NS0xMWVjLThiMTQtMDEyYWYxZGQ1M2Vl")
+	// 	}
+	// }()
 }
 func (b *Bot) Start(addr string) error {
 	// Start the http server

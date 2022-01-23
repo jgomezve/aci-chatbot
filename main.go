@@ -49,17 +49,19 @@ func main() {
 	}
 	// Set up Webex Client
 	wbx := webex.NewWebexClient(r.webexToken)
-	// Set up APIC Client
+	//	Set up APIC Client
 	apic, err := apic.NewApicClient(r.apicUrl, r.apicUsr, r.apicPsw, apic.SetTimeout(5))
 	if err != nil {
 		panic("APIC connection failed")
 	}
 	// Configure and start Bot server
-	b, err := bot.NewBot(&wbx, &apic, r.botUrl)
+	b, err := bot.NewBot(&wbx, apic, r.botUrl)
 	if err != nil {
 		panic("Bot failed to start. Could not contact Webex API")
 	}
-	b.SetupWebSocket()
+	if err = b.SetupWebSocket(); err != nil {
+		panic("Bot failed to start. Error setting up the Websocket client")
+	}
 	if err = b.Start(":7001"); err != nil {
 		panic("Bot failed to start. Could not start HTTP Server")
 	}

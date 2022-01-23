@@ -65,10 +65,11 @@ type WebexWebhook struct {
 }
 
 type WebexWebhookData struct {
-	Id          string `json:"id,omitempty"`
-	RoomId      string `json:"roomId,omitempty"`
-	RoomType    string `json:"roomType,omitempty"`
-	PersonId    string `json:"personId,omitempty"`
-	PersonEmail string `json:"personEmail,omitempty"`
-	Created     string `json:"created,omitempty"`
+	Id              string   `json:"id,omitempty"`
+	RoomId          string   `json:"roomId,omitempty"`
+	RoomType        string   `json:"roomType,omitempty"`
+	PersonId        string   `json:"personId,omitempty"`
+	PersonEmail     string   `json:"personEmail,omitempty"`
+	MentionedPeople []string `json:"mentionedPeople"`
+	Created         string   `json:"created,omitempty"`
 }

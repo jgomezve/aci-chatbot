@@ -23,6 +23,16 @@ func splitEpCommand(s string) map[string]string {
 	return cmd
 }
 
+// Is the command already clean here? TODO
+func splitNeighCommand(s string) string {
+	w := strings.Split(s, " ")
+	if len(w) == 1 {
+		return ""
+	} else {
+		return w[1]
+	}
+}
+
 func parseWebHook(wh *webex.WebexWebhook, r *http.Request) error {
 	body, err := ioutil.ReadAll(r.Body)
 	log.Printf("Parsing Webhook Payload\n")
@@ -36,4 +46,15 @@ func parseWebHook(wh *webex.WebexWebhook, r *http.Request) error {
 		return errors.New("unknown webhok payload")
 	}
 	return nil
+}
+
+func cleanCommand(name string, text string) string {
+	var cleaned []string
+	for _, w := range strings.Split(strings.TrimSpace(text), " ") {
+		if w != name && w != "" {
+			cleaned = append(cleaned, w)
+		}
+	}
+
+	return strings.Join(cleaned, " ")
 }

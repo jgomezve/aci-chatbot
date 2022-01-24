@@ -2,6 +2,6 @@
 env.sh
 .vscode
 *.html
-chatbot
+aci-chatbot
 dev.env
 coverage/

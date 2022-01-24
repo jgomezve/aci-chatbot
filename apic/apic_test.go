@@ -138,7 +138,7 @@ func TestGetProcEntity(t *testing.T) {
 		}
 		clt, _ := NewApicClient("http://mocking.com", "admin", "admin", SetTimeout(8))
 		_, err := clt.GetProcEntity()
-		equals(t, err, errors.New("unable to send the HTTP request"))
+		equals(t, err, errors.New("Generic HTTP Error"))
 	})
 }
 

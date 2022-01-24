@@ -47,7 +47,7 @@ type ApicInterface interface {
 	GetEndpointInformation(m string) ([]EndpointInformation, error)
 	GetFabricNeighbors(nd string) (map[string][]string, error)
 	GetLatestFaults(c string) ([]ApicMoAttributes, error)
-	GetLatestEvents(c string) ([]ApicMoAttributes, error)
+	GetLatestEvents(c string, usr ...string) ([]ApicMoAttributes, error)
 }
 
 type ApicClient struct {
@@ -118,14 +118,17 @@ func (client *ApicClient) login() error {
 	return nil
 }
 
-func (client *ApicClient) GetLatestEvents(c string) ([]ApicMoAttributes, error) {
+func (client *ApicClient) GetLatestEvents(c string, usr ...string) ([]ApicMoAttributes, error) {
 
-	events, err := client.getApicClass("aaaModLR", "order-by=aaaModLR.created|desc", fmt.Sprintf("page-size=%s", c))
+	q := fmt.Sprintf("order-by=aaaModLR.created|desc&page-size=%s", c)
+
+	for _, u := range usr {
+		q += fmt.Sprintf("&query-target-filter=eq(aaaModLR.user,\"%s\")", u)
+	}
+
+	events, err := client.getApicClass("aaaModLR", q)
 	if err != nil {
 		return nil, err
-	}
-	for _, e := range events {
-		fmt.Println(e)
 	}
 	return events, nil
 }
@@ -154,7 +157,7 @@ func (client *ApicClient) GetFabricNeighbors(nd string) (map[string][]string, er
 	for _, n := range append(cdpN, lldpN...) {
 		node := GetRn(n["dn"], "node")
 		nodeIface := fmt.Sprintf("%s:%s", node, GetRn(n["dn"], "if"))
-		if !stringInSlice(nodeIface, neighMap[n["sysName"]]) && (nd == node || nd == "") && n["sysName"] != "" {
+		if !stringInSlice(nodeIface, neighMap[n["sysName"]]) && (nd == node || nd == "all") && n["sysName"] != "" {
 			neighMap[n["sysName"]] = append(neighMap[n["sysName"]], nodeIface)
 		}
 	}

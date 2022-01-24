@@ -33,8 +33,8 @@ func TestCreateBot(t *testing.T) {
 		wmc.SetDefaultFunctions()
 		b, err := NewBot(&wmc, nil, "http://test_bot.com")
 		equals(t, b.url, "http://test_bot.com")
-		equals(t, b.commands["/cpu"].help, "Get APIC CPU Information")
-		equals(t, b.commands["/cpu"].regex, "\\/cpu")
+		equals(t, b.commands["/cpu"].help, "Get APIC CPU Information 💾")
+		equals(t, b.commands["/cpu"].regex, "\\/cpu$")
 		equals(t, err, nil)
 	})
 	// WebexClient unable to get Bot details

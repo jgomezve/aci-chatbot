@@ -14,20 +14,21 @@ import (
 // Callback helpers
 type Callback func(a apic.ApicInterface, m Message, wm WebexMessage) string
 
-// struc to represent the incomming Webex message
-
+// Struct to represent the incomming Webex message
 type WebexMessage struct {
 	sender string
 }
 
-// struct to represent the CLI command
+// Struct to represent the CLI command
 type Message struct {
 	cmd string
 }
 
+// Struct to save the suported CLI commands
 type Command struct {
 	help     string
 	callback Callback
+	suffix   string
 	regex    string
 }
 
@@ -60,17 +61,19 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 
 	bot.commands = make(map[string]Command)
 	log.Println("Adding `/info` command")
-	bot.addCommand("/info", "Get Fabric Information", "\\/info", infoCommand)
+	bot.addCommand("/info", "Get Fabric Information ℹ️", "\\/info", "$", infoCommand)
 	log.Println("Adding `/cpu` command")
-	bot.addCommand("/cpu", "Get APIC CPU Information", "\\/cpu", cpuCommand)
+	bot.addCommand("/cpu", "Get APIC CPU Information 💾", "\\/cpu", "$", cpuCommand)
 	log.Println("Adding `/ep` command")
-	bot.addCommand("/ep", "Get APIC Endpoint Information. Usage /ep <ep_mac>", "\\/ep ([[:xdigit:]]{2}[:.-]?){5}[[:xdigit:]]{2}$", endpointCommand)
+	bot.addCommand("/ep", "Get APIC Endpoint Information 💻. Usage <code>/ep [ep_mac] </code>", "\\/ep", " ([[:xdigit:]]{2}[:.-]?){5}[[:xdigit:]]{2}$", endpointCommand)
 	log.Println("Adding `/neigh` command")
-	bot.addCommand("/neigh", "Get Fabric Topology Information", "\\/neigh", neighCommand)
-	log.Println("Adding `/fault` command")
-	bot.addCommand("/fault", "Get Fabric latest faults", "\\/fault", faultCommand)
+	bot.addCommand("/neigh", "Get Fabric Topology Information 🔢. Usage <code>/neigh [node_id] </code>", "\\/neigh", "( )?([0-9]{1,4})?$", neighCommand)
+	log.Println("Adding `/faults` command")
+	bot.addCommand("/faults", "Get Fabric latest faults ⚠️. Usage <code>/faults [count(1-10):opt] </code>", "\\/faults", "( )?([1-9]|10)( )?$", faultCommand)
+	log.Println("Adding `/events` command")
+	bot.addCommand("/events", "Get Fabric latest events ❎.   Usage <code>/events [user:opt] [count(1-10):opt] </code>", "\\/events", "( )?([A-Za-z]{5,10})?( )?([1-9]|10)?$", eventCommand)
 	log.Println("Adding `/help` command")
-	bot.addCommand("/help", "Chatbot Help", "\\/help", helpCommand(bot.commands))
+	bot.addCommand("/help", "Chatbot Help ❔", "\\/help", "$", helpCommand(bot.commands))
 	log.Println("Setting up Webex Webhook")
 	if err = bot.setupWebhook(); err != nil {
 		log.Printf("could not setup the webhook. Err %s", err)
@@ -82,20 +85,54 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 }
 
 // Command Handlers
+// /event handler
+func eventCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
+	res := ""
+	indMap := map[string]string{"creation": "❇️", "modification": "🔄", "deletion": "🗑"}
+	events := splitFaultsAndEnvents(m.cmd)
+
+	var err error
+	var info []apic.ApicMoAttributes
+
+	if user, ok := events["user"]; ok {
+		info, err = c.GetLatestEvents(events["count"], user)
+	} else {
+		info, err = c.GetLatestEvents(events["count"])
+	}
+
+	if err != nil {
+		log.Printf("Error while connecting to the Apic. Err: %s", err)
+		return fmt.Sprintf("Hi %s 🤖 !. I could not reach the APIC... Are there any issues?", wm.sender)
+	}
+
+	if len(info) == 0 {
+		return fmt.Sprintf("Hi %s 🤖 !. There are no events for username <code>%s</code>", wm.sender, events["user"])
+	}
+
+	res += fmt.Sprintf("\nThese are the latest %s events in the the Fabric : \n\n", events["count"])
+
+	res += "<ul>"
+	for _, f := range info {
+		res += fmt.Sprintf("<li><strong>%s</strong> - <em>%s</em>", f["code"], f["affected"])
+		res += "<ul>"
+		res += fmt.Sprintf("<li>%s</li>", f["descr"])
+		res += fmt.Sprintf("<li><strong>User</strong>: %s</li>", f["user"])
+		res += fmt.Sprintf("<li><strong>Type</strong>: %s %s</li>", f["ind"], indMap[f["ind"]])
+		res += fmt.Sprintf("<li><strong>Created</strong>: %s</li>", f["created"])
+		res += "</ul>"
+	}
+	res += "</ul>"
+	return fmt.Sprintf("Hi %s 🤖 !\n\n%s", wm.sender, res)
+}
+
 // /fault handler
 func faultCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 	res := ""
 	sevMap := map[string]string{"critical": "📛", "major": "☢️", "minor": "⚠️", "warning": "🌀", "cleared": "❎"}
 	lcMap := map[string]string{"soaking": "♻️", "retaining": "✅", "raised": "❌", "soaking-clearing": "♻️", "raised-clearing": "♻️"}
-	faults := splitNeighCommand(m.cmd)
-	faultsInt, err := strconv.Atoi(faults)
-	if err != nil {
-		return fmt.Sprintf("Hi %s 🤖 !\n Sorry.. You did not enter a valid number", wm.sender)
-	}
-	if faultsInt > 10 || faults == "" {
-		faults = "10"
-	}
-	info, err := c.GetLatestFaults(faults)
+	faults := splitFaultsAndEnvents(m.cmd)
+
+	info, err := c.GetLatestFaults(faults["count"])
 
 	if err != nil {
 		log.Printf("Error while connecting to the Apic. Err: %s", err)
@@ -122,7 +159,8 @@ func faultCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 // /neigh handler
 func neighCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 	res := ""
-	info, err := c.GetFabricNeighbors(splitNeighCommand(m.cmd))
+	neighId := splitNeighCommand(m.cmd)
+	info, err := c.GetFabricNeighbors(neighId["neigh"])
 
 	// Sort by Neigh Name
 	keys := make([]string, 0, len(info))
@@ -136,16 +174,16 @@ func neighCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 		return fmt.Sprintf("Hi %s 🤖 !. I could not reach the APIC... Are there any issues?", wm.sender)
 	}
 
-	if len(info) == 0 && splitNeighCommand(m.cmd) == "" {
-		return fmt.Sprintf("Hi %s 🤖 !\n It seems there are no Neighbors for <code>Node</code> %s", wm.sender, splitNeighCommand(m.cmd))
-	} else if len(info) == 0 && splitNeighCommand(m.cmd) != "" {
+	if len(info) == 0 && neighId["neigh"] != "all" {
+		return fmt.Sprintf("Hi %s 🤖 !\n It seems there are no Neighbors for Node <code>%s</code>", wm.sender, neighId["neigh"])
+	} else if len(info) == 0 && neighId["neigh"] == "all" {
 		return fmt.Sprintf("Hi %s 🤖 !\n Sorry.. I could not discover the Topology of the Fabric", wm.sender)
 	}
 
-	if splitNeighCommand(m.cmd) == "" {
+	if neighId["neigh"] == "all" {
 		res += "\nThis is the Topology information of the Fabric : \n\n"
 	} else {
-		res += fmt.Sprintf("\nThese are the Neighbors of the Node <code>%s</code>: \n\n", splitNeighCommand(m.cmd))
+		res += fmt.Sprintf("\nThese are the Neighbors of the Node <code>%s</code>: \n\n", neighId["neigh"])
 	}
 	res += "<ul>"
 
@@ -249,10 +287,17 @@ func cpuCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 // /help handler
 func helpCommand(cmd map[string]Command) Callback {
 	return func(a apic.ApicInterface, m Message, wm WebexMessage) string {
+
+		keys := make([]string, 0, len(cmd))
+		for k := range cmd {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+
 		res := fmt.Sprintf("Hello %s, How can I help you?\n\n", wm.sender)
 		res = res + "<ul>"
-		for key, value := range cmd {
-			res = res + fmt.Sprintf("<li><code>%s</code>\t->\t%s</li>", key, value.help)
+		for _, k := range keys {
+			res = res + fmt.Sprintf("<li><code>%s</code>\t->\t%s</li>", k, cmd[k].help)
 		}
 		res = res + "<ul>"
 		return res
@@ -313,10 +358,17 @@ func webhookHandler(wbx webex.WebexInterface, ap apic.ApicInterface, cmd map[str
 			found := false
 			// Check which command was sent in the webex room
 			messageText := cleanCommand(b.DisplayName, message.Text)
-			for _, element := range cmd {
+			for cli, element := range cmd {
 				if MatchCommand(messageText, element.regex) {
 					// Send message back the text is returned from the commandHandler
 					wbx.SendMessageToRoom(element.callback(ap, Message{cmd: messageText}, WebexMessage{sender: sender.NickName}), wh.Data.RoomId)
+					found = true
+					w.WriteHeader(http.StatusOK)
+					return
+				}
+				// Matches the first word but the arguments does not fit. Send back the usage
+				if MatchCommand(messageText, element.suffix) {
+					wbx.SendMessageToRoom(fmt.Sprintf("Hi %s 🤖 \n I could not fully understand the input\n Please check the usage of the <code>%s</code> command:\n <ul><li>%s</ul></li>\n", sender.NickName, cli, element.help), wh.Data.RoomId)
 					found = true
 					w.WriteHeader(http.StatusOK)
 					return
@@ -341,12 +393,13 @@ func (b *Bot) routes() {
 	b.router.HandleFunc("/test", testHandler)
 	b.router.HandleFunc("/webhook", webhookHandler(b.wbx, b.apic, b.commands, b.info))
 }
-func (b *Bot) addCommand(cmd string, h string, re string, call Callback) {
+func (b *Bot) addCommand(cmd string, help string, suf string, re string, call Callback) {
 	// add item to the dispatch table
 	b.commands[cmd] = Command{
-		help:     h,
+		help:     help,
 		callback: call,
-		regex:    re,
+		suffix:   suf,
+		regex:    suf + re,
 	}
 }
 func (b *Bot) setupWebhook() error {

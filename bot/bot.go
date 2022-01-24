@@ -105,7 +105,11 @@ func eventCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 		return fmt.Sprintf("Hi %s 🤖 !. I could not reach the APIC... Are there any issues?", wm.sender)
 	}
 
-	res += fmt.Sprintf("\nThese are the latest %s events in the the Fabric : \n\n", events)
+	if len(info) == 0 {
+		return fmt.Sprintf("Hi %s 🤖 !. There are no events for username <code>%s</code>", wm.sender, events["user"])
+	}
+
+	res += fmt.Sprintf("\nThese are the latest %s events in the the Fabric : \n\n", events["count"])
 
 	res += "<ul>"
 	for _, f := range info {
@@ -283,10 +287,17 @@ func cpuCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 // /help handler
 func helpCommand(cmd map[string]Command) Callback {
 	return func(a apic.ApicInterface, m Message, wm WebexMessage) string {
+
+		keys := make([]string, 0, len(cmd))
+		for k := range cmd {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+
 		res := fmt.Sprintf("Hello %s, How can I help you?\n\n", wm.sender)
 		res = res + "<ul>"
-		for key, value := range cmd {
-			res = res + fmt.Sprintf("<li><code>%s</code>\t->\t%s</li>", key, value.help)
+		for _, k := range keys {
+			res = res + fmt.Sprintf("<li><code>%s</code>\t->\t%s</li>", k, cmd[k].help)
 		}
 		res = res + "<ul>"
 		return res
@@ -347,7 +358,7 @@ func webhookHandler(wbx webex.WebexInterface, ap apic.ApicInterface, cmd map[str
 			found := false
 			// Check which command was sent in the webex room
 			messageText := cleanCommand(b.DisplayName, message.Text)
-			for _, element := range cmd {
+			for cli, element := range cmd {
 				if MatchCommand(messageText, element.regex) {
 					// Send message back the text is returned from the commandHandler
 					wbx.SendMessageToRoom(element.callback(ap, Message{cmd: messageText}, WebexMessage{sender: sender.NickName}), wh.Data.RoomId)
@@ -357,7 +368,7 @@ func webhookHandler(wbx webex.WebexInterface, ap apic.ApicInterface, cmd map[str
 				}
 				// Matches the first word but the arguments does not fit. Send back the usage
 				if MatchCommand(messageText, element.suffix) {
-					wbx.SendMessageToRoom(fmt.Sprintf("Hi %s 🤖 \n. I could not fully understand the command\n. Please check the usage info\n <ul><li>%s</ul></li>\n", sender.NickName, element.help), wh.Data.RoomId)
+					wbx.SendMessageToRoom(fmt.Sprintf("Hi %s 🤖 \n I could not fully understand the input\n Please check the usage of the <code>%s</code> command:\n <ul><li>%s</ul></li>\n", sender.NickName, cli, element.help), wh.Data.RoomId)
 					found = true
 					w.WriteHeader(http.StatusOK)
 					return

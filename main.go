@@ -53,7 +53,7 @@ func main() {
 	//	Set up APIC Client
 	apic, err := apic.NewApicClient(r.apicUrl, r.apicUsr, r.apicPsw, apic.SetTimeout(10))
 	if err != nil {
-		//panic("APIC connection failed")
+		panic("APIC connection failed")
 	}
 	//Configure and start Bot server
 	bot, err := bot.NewBot(&wbx, &apic, r.botUrl)

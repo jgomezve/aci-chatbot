@@ -10,6 +10,7 @@ type ApicClientMocks struct {
 	GetEndpointInformationF func(m string) ([]EndpointInformation, error)
 	GetFabricNeighborsF     func(nd string) (map[string][]string, error)
 	GetLatestFaultsF        func(c string) ([]ApicMoAttributes, error)
+	GetLatestEventsF        func(c string, usr ...string) ([]ApicMoAttributes, error)
 }
 
 // TODO: check if this approach is valid
@@ -78,4 +79,8 @@ func (ac *ApicClientMocks) GetToken() string {
 
 func (ac *ApicClientMocks) Login() error {
 	return nil
+}
+
+func (ac *ApicClientMocks) GetLatestEvents(c string, usr ...string) ([]ApicMoAttributes, error) {
+	return ac.GetLatestEventsF(c)
 }

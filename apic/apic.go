@@ -52,6 +52,7 @@ type ApicInterface interface {
 	GetEndpointInformation(m string) ([]EndpointInformation, error)
 	GetFabricNeighbors(nd string) (map[string][]string, error)
 	GetLatestFaults(c string) ([]ApicMoAttributes, error)
+	GetLatestEvents(c string, usr ...string) ([]ApicMoAttributes, error)
 }
 
 type ApicClient struct {
@@ -169,6 +170,20 @@ func (client *ApicClient) WsClassSubscription(c string) (string, error) {
 	}
 	return result["subscriptionId"].(string), nil
 }
+func (client *ApicClient) GetLatestEvents(c string, usr ...string) ([]ApicMoAttributes, error) {
+
+	q := fmt.Sprintf("order-by=aaaModLR.created|desc&page-size=%s", c)
+
+	for _, u := range usr {
+		q += fmt.Sprintf("&query-target-filter=eq(aaaModLR.user,\"%s\")", u)
+	}
+
+	events, err := client.getApicClass("aaaModLR", q)
+	if err != nil {
+		return nil, err
+	}
+	return events, nil
+}
 
 func (client *ApicClient) GetLatestFaults(c string) ([]ApicMoAttributes, error) {
 
@@ -194,7 +209,7 @@ func (client *ApicClient) GetFabricNeighbors(nd string) (map[string][]string, er
 	for _, n := range append(cdpN, lldpN...) {
 		node := GetRn(n["dn"], "node")
 		nodeIface := fmt.Sprintf("%s:%s", node, GetRn(n["dn"], "if"))
-		if !stringInSlice(nodeIface, neighMap[n["sysName"]]) && (nd == node || nd == "") && n["sysName"] != "" {
+		if !stringInSlice(nodeIface, neighMap[n["sysName"]]) && (nd == node || nd == "all") && n["sysName"] != "" {
 			neighMap[n["sysName"]] = append(neighMap[n["sysName"]], nodeIface)
 		}
 	}
@@ -352,7 +367,7 @@ func (client *ApicClient) makeCall(m string, url string, p io.Reader) (*http.Req
 func (client *ApicClient) doCall(req *http.Request, res interface{}) error {
 	resp, err := client.httpClient.Do(req)
 	if err != nil {
-		return errors.New("unable to send the HTTP request")
+		return err
 	}
 
 	// Why defer ?
@@ -360,7 +375,7 @@ func (client *ApicClient) doCall(req *http.Request, res interface{}) error {
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
-		return errors.New("unable to read the response body")
+		return err
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -369,7 +384,7 @@ func (client *ApicClient) doCall(req *http.Request, res interface{}) error {
 
 	if err = json.Unmarshal(body, &res); err != nil {
 		// TODO: Check error message
-		return errors.New("unable to read the response body")
+		return err
 	}
 	return nil
 }

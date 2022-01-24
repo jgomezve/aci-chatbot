@@ -109,7 +109,7 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 func websocketCommand(wss map[string]SocketSubscription) Callback {
 	return func(c apic.ApicInterface, m Message, wm WebexMessage) string {
 		res := ""
-		class := splitNeighCommand(m.cmd)
+		class := splitWebsocketCommand(m.cmd)
 		id, err := c.WsClassSubscription(class["class"])
 		if err != nil {
 			return fmt.Sprintf("Hi %s 🤖 !\n Sorry... I could not subscribe to the class <code>%s</code>", wm.sender, class)

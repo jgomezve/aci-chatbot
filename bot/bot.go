@@ -91,7 +91,7 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 	bot.addCommand("/faults", "Get Fabric latest faults ⚠️. Usage <code>/faults [count(1-10):opt] </code>", "\\/faults", "( )?([1-9]|10)( )?$", faultCommand)
 	log.Println("Adding `/events` command")
 	bot.addCommand("/events", "Get Fabric latest events ❎.   Usage <code>/events [user:opt] [count(1-10):opt] </code>", "\\/events", "( )?([A-Za-z]{5,10})?( )?([1-9]|10)?$", eventCommand)
-	bot.addCommand("/websocket", "Subscribe to Fabric events 📀", "\\/websocket", "$", websocketCommand(bot.wsSubcription))
+	bot.addCommand("/websocket", "Subscribe to Fabric events 📀", "\\/websocket", " [A-Za-z]{1,20}$", websocketCommand(bot.wsSubcription))
 	log.Println("Adding `/help` command")
 	log.Println("Adding `/help` command")
 	bot.addCommand("/help", "Chatbot Help ❔", "\\/help", "$", helpCommand(bot.commands))
@@ -109,15 +109,15 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 func websocketCommand(wss map[string]SocketSubscription) Callback {
 	return func(c apic.ApicInterface, m Message, wm WebexMessage) string {
 		res := ""
-		class := splitWebsocketCommand(m.cmd)
-		id, err := c.WsClassSubscription(class["class"])
+		class := splitWebsocketCommand(m.cmd)["class"]
+		id, err := c.WsClassSubscription(class)
 		if err != nil {
 			return fmt.Sprintf("Hi %s 🤖 !\n Sorry... I could not subscribe to the class <code>%s</code>", wm.sender, class)
 		}
 		// Update the internal DB
-		if entry, ok := wss[class["class"]]; !ok {
+		if entry, ok := wss[class]; !ok {
 			log.Printf("New entry for MO/Class %s\n", class)
-			wss[class["class"]] = SocketSubscription{SubscriptionID: id, RoomsId: []string{wm.roomId}}
+			wss[class] = SocketSubscription{SubscriptionID: id, RoomsId: []string{wm.roomId}}
 		} else {
 			//TODO: Fix this update
 			log.Printf("Existing entry for MO/Class %s\n", class)
@@ -470,56 +470,71 @@ func (b *Bot) setupWebhook() error {
 	return nil
 }
 
-func refreshWebSocket(b *Bot) {
-	ticker := time.NewTicker(60 * time.Second)
-	defer ticker.Stop()
-	for {
-		<-ticker.C
-
-		for k, v := range b.wsSubcription {
-			log.Printf("Refreshing subscription %s - %s", k, v.SubscriptionID)
-			b.apic.WsSubcriptionRefresh(v.SubscriptionID)
-		}
-
-	}
-}
-
 func readWebsocket(b *Bot) {
-	socketInfo := ApicWebSocket{}
+	statusMap := map[string]string{"deleted": "❌", "created": "✅", "modified": "✏️"}
 	for {
 
-		b.wsck.ReadSocket(&socketInfo)
+		subId, events := b.wsck.ReadSocketEvent()
+		log.Println(events)
 		className := ""
 		for k, v := range b.wsSubcription {
-			if v.SubscriptionID == socketInfo.SubscriptionId[0] {
+			if v.SubscriptionID == subId {
 				className = k
 			}
 		}
 
+		msg := "<ul>"
+		dampen := false
+		for _, event := range events {
+			for _, item := range event["changed_attributes"].([]string) {
+				if item == "pcTag:0" {
+					dampen = true
+				}
+			}
+			msg += fmt.Sprintf("<li>The object <code>%s</code> has been <strong>%s</strong></li> %s", event["dn"], event["status"], statusMap[event["status"].(string)])
+		}
+		msg += "</ul>"
+
+		if dampen {
+			continue
+		}
+
 		for _, room := range b.wsSubcription[className].RoomsId {
-			b.wbx.SendMessageToRoom(fmt.Sprintf("Something happened with a %s", className), room)
+			roomInfo, _ := b.wbx.GetRoomById(room)
+			res := fmt.Sprintf("Hi %s 🤖\n Notification from the APIC %s \n %s", roomInfo.Title, b.apic.GetIp(), msg)
+			b.wbx.SendMessageToRoom(res, room)
 		}
 	}
 }
 
-func refreshApicClient(ap apic.ApicInterface, apw apic.ApicWebSocket, t int) {
-	ticker := time.NewTicker(time.Duration(t) * time.Second)
-	defer ticker.Stop()
+func refreshApicClient(b *Bot, t int) {
+	tickerToken := time.NewTicker(time.Duration(t) * time.Second)
+	tickerWs := time.NewTicker(60 * time.Second)
+	defer tickerToken.Stop()
+	defer tickerWs.Stop()
 	for {
-		<-ticker.C
-		log.Printf("Refreshing REST APIC Token\n")
-		ap.Login()
-		log.Printf("Refreshing Websocket APIC Token")
-		apw.NewDial(ap.GetToken())
+
+		select {
+		case <-tickerToken.C:
+			log.Printf("Refreshing REST APIC Token\n")
+			b.apic.Login()
+			log.Printf("Refreshing Websocket APIC Token")
+			b.wsck.NewDial(b.apic.GetToken())
+
+		case <-tickerWs.C:
+			for k, v := range b.wsSubcription {
+				log.Printf("Refreshing subscription %s - %s", k, v.SubscriptionID)
+				b.apic.WsSubcriptionRefresh(v.SubscriptionID)
+			}
+		}
 	}
 }
 
 func (b *Bot) SetupWebSocket() error {
 
 	b.wsck, _ = apic.NewApicWebSClient(b.apic.GetIp(), b.apic.GetToken())
-	go refreshApicClient(b.apic, *b.wsck, 180)
+	go refreshApicClient(b, 180)
 	go readWebsocket(b)
-	go refreshWebSocket(b)
 	return nil
 }
 

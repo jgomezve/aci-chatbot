@@ -85,7 +85,7 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 	bot.addCommand("/faults", "Get Fabric latest faults ⚠️. Usage <code>/faults [count(1-10):opt] </code>", "\\/faults", "( )?([1-9]|10)( )?$", faultCommand)
 	log.Println("Adding `/events` command")
 	bot.addCommand("/events", "Get Fabric latest events ❎.   Usage <code>/events [user:opt] [count(1-10):opt] </code>", "\\/events", "( )?([A-Za-z]{5,10})?( )?([1-9]|10)?$", eventCommand)
-	bot.addCommand("/websocket", "Subscribe to Fabric events 📀", "\\/websocket", " [A-Za-z]{1,20}$", websocketCommand(bot.wsSubs))
+	bot.addCommand("/websocket", "Subscribe to Fabric events 📩", "\\/websocket", " [A-Za-z]{1,20}( )?(rm)?$", websocketCommand(bot.wsSubs))
 	log.Println("Adding `/help` command")
 	log.Println("Adding `/help` command")
 	bot.addCommand("/help", "Chatbot Help ❔", "\\/help", "$", helpCommand(bot.commands))
@@ -102,9 +102,10 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 // /websocket handler
 func websocketCommand(wsDb *webSocketDb) Callback {
 	return func(c apic.ApicInterface, m Message, wm WebexMessage) string {
-		res := ""
 		class := splitWebsocketCommand(m.cmd)["class"]
+		operation := splitWebsocketCommand(m.cmd)["op"]
 
+		// /websocket list -> Return the list of subscriptions
 		if class == "list" {
 			res := "<ul>"
 			classes := wsDb.getClassesbyRoomId(wm.roomId)
@@ -118,16 +119,28 @@ func websocketCommand(wsDb *webSocketDb) Callback {
 				return fmt.Sprintf("Hi %s 🤖 !\n Here the list of subcribed classes:\n %s", wm.sender, res)
 			}
 		}
+		// /websocket xxxx rm -> Remove subscirption to this Room
+		if operation == "rm" {
+			if wsDb.checkSubsciption(class, wm.roomId) {
+				wsDb.removeSubcription(class, wm.roomId)
+				return fmt.Sprintf("Hi %s 🤖 !\n\n Websocket subscription to MO/Class <code>%s</code> deleted 🔧 !", wm.sender, class)
+			} else {
+				return fmt.Sprintf("Hi %s 🤖 !\n\n You are not subscribed to MO/Class <code>%s</code>", wm.sender, class)
+			}
+			// /websocket xxxx -> Add subscirption to this Room
+		} else {
+			if !wsDb.checkSubsciption(class, wm.roomId) {
+				id, err := c.WsClassSubscription(class)
+				if err != nil {
+					return fmt.Sprintf("Hi %s 🤖 !\n Sorry... I could not subscribe to the class <code>%s</code>", wm.sender, class)
+				}
+				wsDb.addSubcription(class, id, wm.roomId)
+				return fmt.Sprintf("Hi %s 🤖 !\n\n Websocket subscription to MO/Class <code>%s</code> configured 🔧 !", wm.sender, class)
+			} else {
+				return fmt.Sprintf("Hi %s 🤖 !\n\n You are already subscribed to MO/Class <code>%s</code>", wm.sender, class)
+			}
 
-		id, err := c.WsClassSubscription(class)
-		if err != nil {
-			return fmt.Sprintf("Hi %s 🤖 !\n Sorry... I could not subscribe to the class <code>%s</code>", wm.sender, class)
 		}
-
-		wsDb.addSubcription(class, id, wm.roomId)
-
-		return fmt.Sprintf("Hi %s 🤖 !\n\n%s Websocket subscription to MO/Class <code>%s</code> configured 🔧 !", wm.sender, res, class)
-
 	}
 }
 
@@ -481,20 +494,10 @@ func readWebsocket(b *Bot) {
 		className := b.wsSubs.getClassNamebySubId(subId)
 
 		msg := "<ul>"
-		dampen := false
 		for _, event := range events {
-			for _, item := range event["changed_attributes"].([]string) {
-				if item == "pcTag:0" {
-					dampen = true
-				}
-			}
 			msg += fmt.Sprintf("<li>The object <code>%s</code> has been <strong>%s</strong></li> %s", event["dn"], event["status"], statusMap[event["status"].(string)])
 		}
 		msg += "</ul>"
-
-		if dampen {
-			continue
-		}
 
 		for _, room := range b.wsSubs.getRoomsIdbyClass(className) {
 			roomInfo, _ := b.wbx.GetRoomById(room)

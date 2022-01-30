@@ -20,7 +20,12 @@ func MatchCommand(s string, re string) bool {
 // TODO Check optimization
 func splitWebsocketCommand(s string) map[string]string {
 	w := strings.Split(s, " ")
-	return map[string]string{"class": w[1]}
+	if len(w) == 3 {
+		return map[string]string{"class": w[1], "op": w[2]}
+	} else {
+		return map[string]string{"class": w[1]}
+	}
+
 }
 
 func splitEpCommand(s string) map[string]string {

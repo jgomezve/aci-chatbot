@@ -1,11 +1,8 @@
 package bot
 
-import (
-	"log"
-)
-
-// struct to represent the Websocket subscriptions
-
+// struct to represent a DB storing the active subscription
+// This could be improved by storgin the information in a external DB
+//  This would make the application stateless
 type webSocketDb struct {
 	wss map[string]SocketSubscription
 }
@@ -48,17 +45,30 @@ func (wsDb *webSocketDb) getActiveSubscriptions() map[string]string {
 	return subs
 }
 
-// Add a new subscription from a room
+// Add a new subscription to a room
 func (wsDb *webSocketDb) addSubcription(class string, subId string, roomId string) {
-
 	if entry, ok := wsDb.wss[class]; !ok {
-		log.Printf("New entry for MO/Class %s\n", class)
 		wsDb.wss[class] = SocketSubscription{SubscriptionID: subId, RoomsId: []string{roomId}}
 	} else {
-		//TODO: Fix this update
-		log.Printf("Existing entry for MO/Class %s\n", class)
-		log.Printf("Adding Room ID %s\n", roomId)
 		entry.RoomsId = append(entry.RoomsId, roomId)
+		wsDb.wss[class] = entry
+	}
+}
+
+// Remove a new subscription from a room
+func (wsDb *webSocketDb) removeSubcription(class string, roomId string) {
+
+	if entry, ok := wsDb.wss[class]; ok {
+		for idx, room := range entry.RoomsId {
+			if room == roomId {
+				entry.RoomsId[idx] = entry.RoomsId[len(entry.RoomsId)-1]
+				entry.RoomsId = entry.RoomsId[:len(entry.RoomsId)-1]
+				wsDb.wss[class] = entry
+			}
+		}
+		if len(wsDb.wss[class].RoomsId) == 0 {
+			delete(wsDb.wss, class)
+		}
 	}
 
 }
@@ -74,4 +84,14 @@ func (wsDb *webSocketDb) getClassesbyRoomId(roomId string) []string {
 		}
 	}
 	return classes
+}
+
+// Get the classes subscribed in a Room
+func (wsDb *webSocketDb) checkSubsciption(class string, roomId string) bool {
+	for _, room := range wsDb.wss[class].RoomsId {
+		if room == roomId {
+			return true
+		}
+	}
+	return false
 }

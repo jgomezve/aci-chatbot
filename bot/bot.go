@@ -16,12 +16,6 @@ import (
 // Callback helpers
 type Callback func(a apic.ApicInterface, m Message, wm WebexMessage) string
 
-// Struct for the websockets
-type ApicWebSocket struct {
-	SubscriptionId []string `json:"subscriptionId"`
-	//	Imdata         string   `json:"imdata"`
-}
-
 // Struct to represent the incomming Webex message
 type WebexMessage struct {
 	sender string

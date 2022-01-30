@@ -28,12 +28,6 @@ type WebexMessage struct {
 	roomId string
 }
 
-// struct to represent the Websocket subscriptions
-type SocketSubscription struct {
-	SubscriptionID string
-	RoomsId        []string
-}
-
 // Struct to represent the CLI command
 type Message struct {
 	cmd string
@@ -49,15 +43,15 @@ type Command struct {
 
 // Bot definition
 type Bot struct {
-	wbx           webex.WebexInterface
-	apic          apic.ApicInterface
-	wsck          *apic.ApicWebSocket
-	server        *http.Server
-	router        *http.ServeMux
-	url           string
-	commands      map[string]Command
-	wsSubcription map[string]SocketSubscription
-	info          webex.WebexPeople
+	wbx      webex.WebexInterface
+	apic     apic.ApicInterface
+	wsck     *apic.ApicWebSocket
+	server   *http.Server
+	router   *http.ServeMux
+	url      string
+	commands map[string]Command
+	wsSubs   *webSocketDb
+	info     webex.WebexPeople
 }
 
 // Bot Generator
@@ -77,7 +71,7 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 	}
 
 	bot.commands = make(map[string]Command)
-	bot.wsSubcription = make(map[string]SocketSubscription)
+	bot.wsSubs = NewWsDb()
 
 	log.Println("Adding `/info` command")
 	bot.addCommand("/info", "Get Fabric Information ℹ️", "\\/info", "$", infoCommand)
@@ -91,7 +85,7 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 	bot.addCommand("/faults", "Get Fabric latest faults ⚠️. Usage <code>/faults [count(1-10):opt] </code>", "\\/faults", "( )?([1-9]|10)( )?$", faultCommand)
 	log.Println("Adding `/events` command")
 	bot.addCommand("/events", "Get Fabric latest events ❎.   Usage <code>/events [user:opt] [count(1-10):opt] </code>", "\\/events", "( )?([A-Za-z]{5,10})?( )?([1-9]|10)?$", eventCommand)
-	bot.addCommand("/websocket", "Subscribe to Fabric events 📀", "\\/websocket", " [A-Za-z]{1,20}$", websocketCommand(bot.wsSubcription))
+	bot.addCommand("/websocket", "Subscribe to Fabric events 📀", "\\/websocket", " [A-Za-z]{1,20}$", websocketCommand(bot.wsSubs))
 	log.Println("Adding `/help` command")
 	log.Println("Adding `/help` command")
 	bot.addCommand("/help", "Chatbot Help ❔", "\\/help", "$", helpCommand(bot.commands))
@@ -106,24 +100,32 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 
 // Command Handlers
 // /websocket handler
-func websocketCommand(wss map[string]SocketSubscription) Callback {
+func websocketCommand(wsDb *webSocketDb) Callback {
 	return func(c apic.ApicInterface, m Message, wm WebexMessage) string {
 		res := ""
 		class := splitWebsocketCommand(m.cmd)["class"]
+
+		if class == "list" {
+			res := "<ul>"
+			classes := wsDb.getClassesbyRoomId(wm.roomId)
+			for _, class := range classes {
+				res += fmt.Sprintf("<li><code>%s</code></li>", class)
+			}
+			res += "</ul>"
+			if len(classes) == 0 {
+				return fmt.Sprintf("Hi %s 🤖 !\n You are no subscribed to any class", wm.sender)
+			} else {
+				return fmt.Sprintf("Hi %s 🤖 !\n Here the list of subcribed classes:\n %s", wm.sender, res)
+			}
+		}
+
 		id, err := c.WsClassSubscription(class)
 		if err != nil {
 			return fmt.Sprintf("Hi %s 🤖 !\n Sorry... I could not subscribe to the class <code>%s</code>", wm.sender, class)
 		}
-		// Update the internal DB
-		if entry, ok := wss[class]; !ok {
-			log.Printf("New entry for MO/Class %s\n", class)
-			wss[class] = SocketSubscription{SubscriptionID: id, RoomsId: []string{wm.roomId}}
-		} else {
-			//TODO: Fix this update
-			log.Printf("Existing entry for MO/Class %s\n", class)
-			log.Printf("Adding Room ID %s\n", wm.roomId)
-			entry.RoomsId = append(entry.RoomsId, wm.roomId)
-		}
+
+		wsDb.addSubcription(class, id, wm.roomId)
+
 		return fmt.Sprintf("Hi %s 🤖 !\n\n%s Websocket subscription to MO/Class <code>%s</code> configured 🔧 !", wm.sender, res, class)
 
 	}
@@ -476,12 +478,7 @@ func readWebsocket(b *Bot) {
 
 		subId, events := b.wsck.ReadSocketEvent()
 		log.Println(events)
-		className := ""
-		for k, v := range b.wsSubcription {
-			if v.SubscriptionID == subId {
-				className = k
-			}
-		}
+		className := b.wsSubs.getClassNamebySubId(subId)
 
 		msg := "<ul>"
 		dampen := false
@@ -499,7 +496,7 @@ func readWebsocket(b *Bot) {
 			continue
 		}
 
-		for _, room := range b.wsSubcription[className].RoomsId {
+		for _, room := range b.wsSubs.getRoomsIdbyClass(className) {
 			roomInfo, _ := b.wbx.GetRoomById(room)
 			res := fmt.Sprintf("Hi %s 🤖\n Notification from the APIC %s \n %s", roomInfo.Title, b.apic.GetIp(), msg)
 			b.wbx.SendMessageToRoom(res, room)
@@ -522,9 +519,9 @@ func refreshApicClient(b *Bot, t int) {
 			b.wsck.NewDial(b.apic.GetToken())
 
 		case <-tickerWs.C:
-			for k, v := range b.wsSubcription {
-				log.Printf("Refreshing subscription %s - %s", k, v.SubscriptionID)
-				b.apic.WsSubcriptionRefresh(v.SubscriptionID)
+			for class, subId := range b.wsSubs.getActiveSubscriptions() {
+				log.Printf("Refreshing subscription %s - %s", class, subId)
+				b.apic.WsSubcriptionRefresh(subId)
 			}
 		}
 	}

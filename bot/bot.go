@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
+
 	"sort"
 	"strconv"
 )
@@ -17,6 +19,7 @@ type Callback func(a apic.ApicInterface, m Message, wm WebexMessage) string
 // Struct to represent the incomming Webex message
 type WebexMessage struct {
 	sender string
+	roomId string
 }
 
 // Struct to represent the CLI command
@@ -36,10 +39,12 @@ type Command struct {
 type Bot struct {
 	wbx      webex.WebexInterface
 	apic     apic.ApicInterface
+	wsck     *apic.ApicWebSocket
 	server   *http.Server
 	router   *http.ServeMux
 	url      string
 	commands map[string]Command
+	wsSubs   *webSocketDb
 	info     webex.WebexPeople
 }
 
@@ -60,6 +65,8 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 	}
 
 	bot.commands = make(map[string]Command)
+	bot.wsSubs = NewWsDb()
+
 	log.Println("Adding `/info` command")
 	bot.addCommand("/info", "Get Fabric Information ℹ️", "\\/info", "$", infoCommand)
 	log.Println("Adding `/cpu` command")
@@ -72,6 +79,8 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 	bot.addCommand("/faults", "Get Fabric latest faults ⚠️. Usage <code>/faults [count(1-10):opt] </code>", "\\/faults", "( )?([1-9]|10)( )?$", faultCommand)
 	log.Println("Adding `/events` command")
 	bot.addCommand("/events", "Get Fabric latest events ❎.   Usage <code>/events [user:opt] [count(1-10):opt] </code>", "\\/events", "( )?([A-Za-z]{5,10})?( )?([1-9]|10)?$", eventCommand)
+	bot.addCommand("/websocket", "Subscribe to Fabric events 📩", "\\/websocket", " [A-Za-z]{1,20}( )?(rm)?$", websocketCommand(bot.wsSubs))
+	log.Println("Adding `/help` command")
 	log.Println("Adding `/help` command")
 	bot.addCommand("/help", "Chatbot Help ❔", "\\/help", "$", helpCommand(bot.commands))
 	log.Println("Setting up Webex Webhook")
@@ -80,11 +89,55 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 		return Bot{}, err
 	}
 	bot.routes()
-
 	return bot, nil
 }
 
 // Command Handlers
+// /websocket handler
+func websocketCommand(wsDb *webSocketDb) Callback {
+	return func(c apic.ApicInterface, m Message, wm WebexMessage) string {
+		class := splitWebsocketCommand(m.cmd)["class"]
+		operation := splitWebsocketCommand(m.cmd)["op"]
+
+		// /websocket list -> Return the list of subscriptions
+		if class == "list" {
+			res := "<ul>"
+			classes := wsDb.getClassesbyRoomId(wm.roomId)
+			for _, class := range classes {
+				res += fmt.Sprintf("<li><code>%s</code></li>", class)
+			}
+			res += "</ul>"
+			if len(classes) == 0 {
+				return fmt.Sprintf("Hi %s 🤖 !\n You are no subscribed to any class", wm.sender)
+			} else {
+				return fmt.Sprintf("Hi %s 🤖 !\n Here the list of subcribed classes:\n %s", wm.sender, res)
+			}
+		}
+		// /websocket xxxx rm -> Remove subscirption to this Room
+		if operation == "rm" {
+			if wsDb.checkSubsciption(class, wm.roomId) {
+				wsDb.removeSubcription(class, wm.roomId)
+				return fmt.Sprintf("Hi %s 🤖 !\n\n Websocket subscription to MO/Class <code>%s</code> deleted 🔧 !", wm.sender, class)
+			} else {
+				return fmt.Sprintf("Hi %s 🤖 !\n\n You are not subscribed to MO/Class <code>%s</code>", wm.sender, class)
+			}
+			// /websocket xxxx -> Add subscirption to this Room
+		} else {
+			if !wsDb.checkSubsciption(class, wm.roomId) {
+				id, err := c.WsClassSubscription(class)
+				if err != nil {
+					return fmt.Sprintf("Hi %s 🤖 !\n Sorry... I could not subscribe to the class <code>%s</code>", wm.sender, class)
+				}
+				wsDb.addSubcription(class, id, wm.roomId)
+				return fmt.Sprintf("Hi %s 🤖 !\n\n Websocket subscription to MO/Class <code>%s</code> configured 🔧 !", wm.sender, class)
+			} else {
+				return fmt.Sprintf("Hi %s 🤖 !\n\n You are already subscribed to MO/Class <code>%s</code>", wm.sender, class)
+			}
+
+		}
+	}
+}
+
 // /event handler
 func eventCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 	res := ""
@@ -361,7 +414,7 @@ func webhookHandler(wbx webex.WebexInterface, ap apic.ApicInterface, cmd map[str
 			for cli, element := range cmd {
 				if MatchCommand(messageText, element.regex) {
 					// Send message back the text is returned from the commandHandler
-					wbx.SendMessageToRoom(element.callback(ap, Message{cmd: messageText}, WebexMessage{sender: sender.NickName}), wh.Data.RoomId)
+					wbx.SendMessageToRoom(element.callback(ap, Message{cmd: messageText}, WebexMessage{sender: sender.NickName, roomId: message.RoomId}), wh.Data.RoomId)
 					found = true
 					w.WriteHeader(http.StatusOK)
 					return
@@ -376,7 +429,7 @@ func webhookHandler(wbx webex.WebexInterface, ap apic.ApicInterface, cmd map[str
 			}
 			// If command sent does not match anything, send back the help menu
 			if !found {
-				wbx.SendMessageToRoom(cmd["/help"].callback(ap, Message{cmd: messageText}, WebexMessage{sender: sender.NickName}), wh.Data.RoomId)
+				wbx.SendMessageToRoom(cmd["/help"].callback(ap, Message{cmd: messageText}, WebexMessage{sender: sender.NickName, roomId: message.RoomId}), wh.Data.RoomId)
 				w.WriteHeader(http.StatusOK)
 				return
 			}
@@ -392,6 +445,7 @@ func (b *Bot) routes() {
 	b.router.HandleFunc("/about", aboutMeHandler(b.wbx))
 	b.router.HandleFunc("/test", testHandler)
 	b.router.HandleFunc("/webhook", webhookHandler(b.wbx, b.apic, b.commands, b.info))
+	// b.router.HandleFunc("/webscket", websocketHandler(b.wbx, b.apic, b.info))
 }
 func (b *Bot) addCommand(cmd string, help string, suf string, re string, call Callback) {
 	// add item to the dispatch table
@@ -424,6 +478,60 @@ func (b *Bot) setupWebhook() error {
 	}
 	return nil
 }
+
+func readWebsocket(b *Bot) {
+	statusMap := map[string]string{"deleted": "❌", "created": "✅", "modified": "✏️"}
+	for {
+
+		subId, events := b.wsck.ReadSocketEvent()
+		log.Println(events)
+		className := b.wsSubs.getClassNamebySubId(subId)
+
+		msg := "<ul>"
+		for _, event := range events {
+			msg += fmt.Sprintf("<li>The object <code>%s</code> has been <strong>%s</strong></li> %s", event["dn"], event["status"], statusMap[event["status"].(string)])
+		}
+		msg += "</ul>"
+
+		for _, room := range b.wsSubs.getRoomsIdbyClass(className) {
+			roomInfo, _ := b.wbx.GetRoomById(room)
+			res := fmt.Sprintf("Hi %s 🤖\n Notification from the APIC %s \n %s", roomInfo.Title, b.apic.GetIp(), msg)
+			b.wbx.SendMessageToRoom(res, room)
+		}
+	}
+}
+
+func refreshApicClient(b *Bot, t int) {
+	tickerToken := time.NewTicker(time.Duration(t) * time.Second)
+	tickerWs := time.NewTicker(60 * time.Second)
+	defer tickerToken.Stop()
+	defer tickerWs.Stop()
+	for {
+
+		select {
+		case <-tickerToken.C:
+			log.Printf("Refreshing REST APIC Token\n")
+			b.apic.Login()
+			log.Printf("Refreshing Websocket APIC Token")
+			b.wsck.NewDial(b.apic.GetToken())
+
+		case <-tickerWs.C:
+			for class, subId := range b.wsSubs.getActiveSubscriptions() {
+				log.Printf("Refreshing subscription %s - %s", class, subId)
+				b.apic.WsSubcriptionRefresh(subId)
+			}
+		}
+	}
+}
+
+func (b *Bot) SetupWebSocket() error {
+
+	b.wsck, _ = apic.NewApicWebSClient(b.apic.GetIp(), b.apic.GetToken())
+	go refreshApicClient(b, 180)
+	go readWebsocket(b)
+	return nil
+}
+
 func (b *Bot) Start(addr string) error {
 	// Start the http server
 	b.server = &http.Server{

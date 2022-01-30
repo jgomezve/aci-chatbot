@@ -1,4 +1,5 @@
-//+build !webex
+//go:build !webex
+// +build !webex
 
 package webex
 
@@ -16,6 +17,7 @@ type WebexClientMocks struct {
 	SendMessageToRoomF    func(m string, roomId string) error
 	GetPersonInformationF func(id string) (WebexPeople, error)
 	GetMessageByIdF       func(id string) (WebexMessage, error)
+	GetRoomByIdF          func(roomId string) (WebexRoom, error)
 }
 
 // TODO: check if this approach is valid
@@ -104,4 +106,8 @@ func (wbx *WebexClientMocks) GetMessages(roomId string, max int, filter ...strin
 }
 func (wbx *WebexClientMocks) GetMessageById(id string) (WebexMessage, error) {
 	return wbx.GetMessageByIdF(id)
+}
+
+func (wbx *WebexClientMocks) GetRoomById(roomId string) (WebexRoom, error) {
+	return wbx.GetRoomByIdF(roomId)
 }

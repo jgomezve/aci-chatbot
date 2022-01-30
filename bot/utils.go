@@ -17,11 +17,20 @@ func MatchCommand(s string, re string) bool {
 	return r.MatchString(s)
 }
 
+// TODO Check optimization
+func splitWebsocketCommand(s string) map[string]string {
+	w := strings.Split(s, " ")
+	if len(w) == 3 {
+		return map[string]string{"class": w[1], "op": w[2]}
+	} else {
+		return map[string]string{"class": w[1]}
+	}
+
+}
+
 func splitEpCommand(s string) map[string]string {
 	w := strings.Split(s, " ")
-	cmd := make(map[string]string)
-	cmd["mac"] = w[1]
-	return cmd
+	return map[string]string{"mac": w[1]}
 }
 
 func splitNeighCommand(s string) map[string]string {

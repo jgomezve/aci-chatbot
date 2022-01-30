@@ -61,6 +61,26 @@ func (ac *ApicClientMocks) GetLatestFaults(c string) ([]ApicMoAttributes, error)
 	return ac.GetLatestFaultsF(c)
 }
 
+func (ac *ApicClientMocks) WsClassSubscription(c string) (string, error) {
+	return "", nil
+}
+
+func (ac *ApicClientMocks) WsSubcriptionRefresh(id string) error {
+	return nil
+}
+
+func (ac *ApicClientMocks) GetIp() string {
+	return "1.2.3.4"
+}
+
+func (ac *ApicClientMocks) GetToken() string {
+	return "aRanDoMtokEn"
+}
+
+func (ac *ApicClientMocks) Login() error {
+	return nil
+}
+
 func (ac *ApicClientMocks) GetLatestEvents(c string, usr ...string) ([]ApicMoAttributes, error) {
 	return ac.GetLatestEventsF(c)
 }

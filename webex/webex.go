@@ -28,6 +28,7 @@ type WebexInterface interface {
 	GetPersonInformation(id string) (WebexPeople, error)
 	GetMessages(roomId string, max int, filter ...string) ([]WebexMessage, error)
 	GetMessageById(id string) (WebexMessage, error)
+	GetRoomById(roomId string) (WebexRoom, error)
 }
 
 type WebexClient struct {
@@ -208,6 +209,24 @@ func (wbx *WebexClient) GetMessageById(id string) (WebexMessage, error) {
 	}
 
 	err = wbx.doCall(req, &result)
+	if err != nil {
+		log.Println("Error: ", err)
+		return result, err
+	}
+
+	return result, nil
+}
+
+func (wbx *WebexClient) GetRoomById(roomId string) (WebexRoom, error) {
+	var result WebexRoom
+	req, err := wbx.makeCall(http.MethodGet, fmt.Sprintf("/v1/rooms/%s", roomId), nil)
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return result, err
+	}
+
+	err = wbx.doCall(req, &result)
+
 	if err != nil {
 		log.Println("Error: ", err)
 		return result, err

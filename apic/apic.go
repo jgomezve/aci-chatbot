@@ -42,7 +42,12 @@ type HttpClient interface {
 }
 
 type ApicInterface interface {
+	Login() error
+	GetIp() string
+	GetToken() string
 	GetProcEntity() ([]ApicMoAttributes, error)
+	WsClassSubscription(c string) (string, error)
+	WsSubcriptionRefresh(id string) error
 	GetFabricInformation() (FabricInformation, error)
 	GetEndpointInformation(m string) ([]EndpointInformation, error)
 	GetFabricNeighbors(nd string) (map[string][]string, error)
@@ -79,7 +84,18 @@ func SetTimeout(t time.Duration) Option {
 	}
 }
 
-func NewApicClient(url, usr, pwd string, options ...Option) (ApicClient, error) {
+func SetWebSocket(t time.Duration) Option {
+	return func(client *ApicClient) {
+		switch client.httpClient.(type) {
+		case *http.Client:
+			client.httpClient.(*http.Client).Timeout = t * time.Second
+		case *mocks.MockClient:
+			client.httpClient.(*mocks.MockClient).Timeout = t * time.Second
+		}
+	}
+}
+
+func NewApicClient(url, usr, pwd string, options ...Option) (*ApicClient, error) {
 	client := ApicClient{
 		usr:        usr,
 		pwd:        pwd,
@@ -92,14 +108,22 @@ func NewApicClient(url, usr, pwd string, options ...Option) (ApicClient, error) 
 		opt(&client)
 	}
 
-	if err := client.login(); err != nil {
-		return client, err
+	if err := client.Login(); err != nil {
+		return nil, err
 	}
-	return client, nil
+	return &client, nil
+}
+
+func (client *ApicClient) GetIp() string {
+	return client.baseURL
+}
+
+func (client *ApicClient) GetToken() string {
+	return client.tkn
 }
 
 // TODO: Use a generic version of _getApicClass_ that uses all the HTTP Verbs
-func (client *ApicClient) login() error {
+func (client *ApicClient) Login() error {
 
 	var result map[string]interface{}
 	loginPayload := fmt.Sprintf(`{"aaaUser":{"attributes":{"name":"%s","pwd":"%s"}}}`, client.usr, client.pwd)
@@ -115,9 +139,37 @@ func (client *ApicClient) login() error {
 
 	r := getApicManagedObjects(result, "aaaLogin")
 	client.tkn = r[0]["token"]
+
 	return nil
 }
 
+func (client *ApicClient) WsSubcriptionRefresh(id string) error {
+	var result map[string]interface{}
+	req, err := client.makeCall(http.MethodGet, fmt.Sprintf("/api/subscriptionRefresh.json?id=%s", id), nil)
+
+	if err != nil {
+		return err
+	}
+	if err = client.doCall(req, &result); err != nil {
+		log.Println("Error: ", err)
+		return err
+	}
+	return nil
+}
+
+func (client *ApicClient) WsClassSubscription(c string) (string, error) {
+	var result map[string]interface{}
+	req, err := client.makeCall(http.MethodGet, fmt.Sprintf("/api/class/%s.json?subscription=yes&refresh-timeout=120?query-target=subtree", c), nil)
+
+	if err != nil {
+		return "", err
+	}
+	if err = client.doCall(req, &result); err != nil {
+		log.Println("Error: ", err)
+		return "", err
+	}
+	return result["subscriptionId"].(string), nil
+}
 func (client *ApicClient) GetLatestEvents(c string, usr ...string) ([]ApicMoAttributes, error) {
 
 	q := fmt.Sprintf("order-by=aaaModLR.created|desc&page-size=%s", c)
@@ -305,7 +357,6 @@ func (client *ApicClient) makeCall(m string, url string, p io.Reader) (*http.Req
 	}
 
 	req.Header.Add("Accept", "application/json")
-	// req.Header.Add("Content-Type", "application/json")
 	if url != "/api/aaaLogin.json" {
 		req.Header.Set("Cookie", "APIC-cookie="+client.tkn)
 	}
@@ -314,7 +365,6 @@ func (client *ApicClient) makeCall(m string, url string, p io.Reader) (*http.Req
 }
 
 func (client *ApicClient) doCall(req *http.Request, res interface{}) error {
-
 	resp, err := client.httpClient.Do(req)
 	if err != nil {
 		return err

@@ -61,3 +61,36 @@ func TestCheckState(t *testing.T) {
 		equals(t, exists, false)
 	})
 }
+
+func TestGetFunctions(t *testing.T) {
+	db := NewWsDb()
+	t.Run("getClassesbyRoomId", func(t *testing.T) {
+		db.addSubcription("fvTenant", "11", "ABC123")
+		db.addSubcription("fvBD", "22", "ABC123")
+		db.addSubcription("fvBD", "33", "DEF456")
+		db.addSubcription("fvCtx", "44", "ABC123")
+		classes := db.getClassesbyRoomId("ABC123")
+		equals(t, len(classes), 3)
+	})
+
+	t.Run("getActiveSubscriptions", func(t *testing.T) {
+		subs := db.getActiveSubscriptions()
+		equals(t, subs["fvTenant"], "11")
+		equals(t, subs["fvBD"], "22")
+		equals(t, subs["fvCtx"], "44")
+	})
+
+	t.Run("getRoomsIdbyClass", func(t *testing.T) {
+		rooms := db.getRoomsIdbyClass("fvBD")
+		equals(t, len(rooms), 2)
+		rooms = db.getRoomsIdbyClass("fvTenant")
+		equals(t, len(rooms), 1)
+		equals(t, rooms[0], "ABC123")
+	})
+	t.Run("getClassNamebySubId", func(t *testing.T) {
+		class := db.getClassNamebySubId("44")
+		equals(t, class, "fvCtx")
+		class = db.getClassNamebySubId("22")
+		equals(t, class, "fvBD")
+	})
+}

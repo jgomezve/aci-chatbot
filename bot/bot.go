@@ -463,7 +463,7 @@ func (b *Bot) setupWebhook() error {
 	for _, wh := range whs {
 		if wh.Name == b.info.DisplayName {
 			log.Printf("Bot already has a Webhook with name %s\n", b.info.DisplayName)
-			err := b.wbx.DeleteWebhook(b.info.DisplayName, wh.Id)
+			err := b.wbx.DeleteWebhook(wh.Id)
 			log.Printf("Deleting Webhooks %s\n", b.info.DisplayName)
 			if err != nil {
 				log.Printf("could not delete existing webhook. Err %s", err)

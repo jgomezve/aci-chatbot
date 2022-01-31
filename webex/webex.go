@@ -22,7 +22,7 @@ type WebexInterface interface {
 	SendMessageToRoom(m string, roomId string) error
 	GetBotDetails() (WebexPeople, error)
 	GetWebHooks() ([]WebexWebhook, error)
-	DeleteWebhook(name, id string) error
+	DeleteWebhook(id string) error
 	CreateWebhook(name, url, resource, event string) error
 	GetPersonInformation(id string) (WebexPeople, error)
 	GetMessages(roomId string, max int, filter ...string) ([]WebexMessage, error)
@@ -90,7 +90,7 @@ func (wbx *WebexClient) CreateWebhook(name, url, resource, event string) error {
 }
 
 // Delete webhook by id
-func (wbx *WebexClient) DeleteWebhook(name, id string) error {
+func (wbx *WebexClient) DeleteWebhook(id string) error {
 
 	err := wbx.processMessage(http.MethodDelete, fmt.Sprintf("/v1/webhooks/%s", id), nil, nil)
 	if err != nil {
@@ -117,15 +117,16 @@ func (wbx *WebexClient) GetPersonInformation(id string) (WebexPeople, error) {
 
 	var result WebexPeopleReply
 
-	err := wbx.processMessage(http.MethodGet, fmt.Sprintf("/v1/people?id=%s", id), nil, result)
+	err := wbx.processMessage(http.MethodGet, fmt.Sprintf("/v1/people?id=%s", id), nil, &result)
 	if err != nil {
 		return WebexPeople{}, err
 	}
-
-	if len(result.People) != 1 {
+	if len(result.People) > 1 {
 		return WebexPeople{}, errors.New("id %s belongs to two different persons ?!?")
 	}
-
+	if len(result.People) == 0 {
+		return WebexPeople{}, errors.New("person not found")
+	}
 	return result.People[0], nil
 }
 
@@ -158,6 +159,16 @@ func (wbx *WebexClient) GetMessageById(id string) (WebexMessage, error) {
 	return result, nil
 }
 
+// Send a markdown message to a Webex Room
+func (wbx *WebexClient) SendMessageToRoom(m, roomId string) error {
+
+	err := wbx.processMessage(http.MethodPost, "/v1/messages", WebexMessage{RoomId: roomId, Markdown: m}, nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // Get room information by ID
 func (wbx *WebexClient) GetRoomById(roomId string) (WebexRoom, error) {
 	var result WebexRoom
@@ -180,16 +191,6 @@ func (wbx *WebexClient) GetRooms() ([]WebexRoom, error) {
 		return nil, err
 	}
 	return result.Rooms, nil
-}
-
-// Send a markdown message to a Webex Room
-func (wbx *WebexClient) SendMessageToRoom(m, roomId string) error {
-
-	err := wbx.processMessage(http.MethodPost, "/v1/messages", WebexMessage{RoomId: roomId, Markdown: m}, nil)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 /// Create and exectute and HTTP request

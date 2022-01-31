@@ -73,7 +73,7 @@ func TestCreateBot(t *testing.T) {
 				Name: "Test-Bot",
 			}}, nil
 		}
-		wmc.DeleteWebhookF = func(name, id string) error {
+		wmc.DeleteWebhookF = func(id string) error {
 			return errors.New("Generic Webex Error")
 		}
 		b, err := NewBot(&wmc, nil, "http://test_bot.com")

@@ -1,5 +1,6 @@
 package webex
 
+// People URI
 type WebexPeopleReply struct {
 	People []WebexPeople `json:"items"`
 }
@@ -14,6 +15,7 @@ type WebexPeople struct {
 	UserName    string   `json:"userName"`
 }
 
+// Room URI
 type WebexRoomsReply struct {
 	Rooms []WebexRoom `json:"items"`
 }
@@ -29,6 +31,7 @@ type WebexRoom struct {
 	OwnerId      string `json:"ownerId"`
 }
 
+// Message URI
 type WebexMessagesReply struct {
 	Messages []WebexMessage `json:"items"`
 }
@@ -44,6 +47,7 @@ type WebexMessage struct {
 	Markdown    string `json:"markdown,omitempty"`
 }
 
+// Webhook URI
 type WebexWebhookReply struct {
 	Webhooks []WebexWebhook `json:"items"`
 }

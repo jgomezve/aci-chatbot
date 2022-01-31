@@ -61,7 +61,7 @@ func TestGetRoomsId(t *testing.T) {
 	client.httpClient = server.Client()
 	client.baseURL = server.URL
 
-	rooms, err := client.GetRoomIds()
+	rooms, err := client.GetRooms()
 	ok(t, err)
 	equals(t, roomReplyM.Rooms, rooms)
 }

@@ -12,7 +12,7 @@ type WebexClientMocks struct {
 	CreateWebhookF        func(name, url, resource, event string) error
 	GetBotDetailsF        func() (WebexPeople, error)
 	GetWebHooksF          func() ([]WebexWebhook, error)
-	DeleteWebhookF        func(name, tUrl, id string) error
+	DeleteWebhookF        func(name, id string) error
 	GetMessagesF          func(roomId string, max int, filter ...string) ([]WebexMessage, error)
 	SendMessageToRoomF    func(m string, roomId string) error
 	GetPersonInformationF func(id string) (WebexPeople, error)
@@ -52,7 +52,7 @@ func (wbx *WebexClientMocks) SetDefaultFunctions() {
 		return nil
 	}
 
-	wbx.DeleteWebhookF = func(name, tUrl, id string) error {
+	wbx.DeleteWebhookF = func(name, id string) error {
 		log.Println("Mock: Deleting Webhook")
 		return nil
 	}
@@ -85,8 +85,8 @@ func (wbx *WebexClientMocks) SendMessageToRoom(m string, roomId string) error {
 	return wbx.SendMessageToRoomF(m, roomId)
 }
 
-func (wbx *WebexClientMocks) DeleteWebhook(name, tUrl, id string) error {
-	return wbx.DeleteWebhookF(name, tUrl, id)
+func (wbx *WebexClientMocks) DeleteWebhook(name, id string) error {
+	return wbx.DeleteWebhookF(name, id)
 }
 
 func (wbx *WebexClientMocks) CreateWebhook(name, url, resource, event string) error {

@@ -13,7 +13,6 @@ type WebexClientMocks struct {
 	GetBotDetailsF        func() (WebexPeople, error)
 	GetWebHooksF          func() ([]WebexWebhook, error)
 	DeleteWebhookF        func(id string) error
-	GetMessagesF          func(roomId string, max int, filter ...string) ([]WebexMessage, error)
 	SendMessageToRoomF    func(m string, roomId string) error
 	GetPersonInformationF func(id string) (WebexPeople, error)
 	GetMessageByIdF       func(id string) (WebexMessage, error)
@@ -57,11 +56,6 @@ func (wbx *WebexClientMocks) SetDefaultFunctions() {
 		return nil
 	}
 
-	wbx.GetMessagesF = func(roomId string, max int, filter ...string) ([]WebexMessage, error) {
-		log.Println("Mock: Getting Webex Room Message")
-		return []WebexMessage{{Text: "This is a mocked webex test", PersonId: "ARandomId"}}, nil
-	}
-
 	wbx.SendMessageToRoomF = func(m, roomId string) error {
 		log.Printf("Mock: Sending Message to Webex Room %s\n%s\n", roomId, m)
 		wbx.LastMsgSent = m
@@ -101,9 +95,6 @@ func (wbx *WebexClientMocks) GetPersonInformation(id string) (WebexPeople, error
 	return wbx.GetPersonInformationF(id)
 }
 
-func (wbx *WebexClientMocks) GetMessages(roomId string, max int, filter ...string) ([]WebexMessage, error) {
-	return wbx.GetMessagesF(roomId, max, filter...)
-}
 func (wbx *WebexClientMocks) GetMessageById(id string) (WebexMessage, error) {
 	return wbx.GetMessageByIdF(id)
 }

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -39,6 +40,28 @@ func TestClient(t *testing.T) {
 	wbx := NewWebexClient("FAKETOKEN")
 
 	equals(t, "https://webexapis.com", wbx.GetBaseUrl())
+}
+
+func TestBadReplies(t *testing.T) {
+	roomTest := `{
+		"id": "AAVVDD",
+		"title": "A Test Room,
+	}`
+
+	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		rw.Write([]byte(roomTest))
+
+	}))
+	defer server.Close()
+	client := NewWebexClient("FAKETOKEN")
+	client.httpClient = server.Client()
+	client.baseURL = server.URL
+
+	t.Run("Get Rooms bad reply", func(t *testing.T) {
+		_, err := client.GetRooms()
+		notOk(t, err)
+	})
+
 }
 
 // Test the functions talking to the /room URI
@@ -128,15 +151,6 @@ func TestMessageUriOk(t *testing.T) {
 		ok(t, err)
 	})
 
-	t.Run("Get Messages", func(t *testing.T) {
-		msg, err := client.GetMessages("AABB", 2)
-		ok(t, err)
-		equals(t, "AABB", msg[0].RoomId)
-		equals(t, "CCDD", msg[0].PersonId)
-		equals(t, "A1B2C3", msg[0].Id)
-		equals(t, 2, len(msg))
-	})
-
 	t.Run("Get Message by ID", func(t *testing.T) {
 		msg, err := client.GetMessageById("A1B2C3")
 		ok(t, err)
@@ -213,7 +227,7 @@ func TestWebhookUriOk(t *testing.T) {
 }
 
 // Test the functions talking to the /People URI
-func TestPeopleUriOk(t *testing.T) {
+func TestPeopleUri(t *testing.T) {
 
 	peopleTest := `{
 		"id": "AAAA",
@@ -247,20 +261,122 @@ func TestPeopleUriOk(t *testing.T) {
 		ok(t, err)
 	})
 }
+func TestPeopleUriNotOk(t *testing.T) {
 
-// func TestSendMessageToRoomFail(t *testing.T) {
+	peopleTest1 := `{
+		"id": "AAAA",
+		"displayName": "Person1"
+	}`
+	peopleTest2 := `{
+		"id": "AAAA",
+		"displayName": "Person1"
+	}`
+	people := fmt.Sprintf(`{
+		"items": [
+			%s,
+			%s
+		]
+	}`, peopleTest1, peopleTest2)
+	noPeople := `{
+		"items": [
+		]
+	}`
 
-// 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-// 		equals(t, req.URL.String(), "/v1/messages")
-// 		rw.WriteHeader(400)
-// 	}))
-// 	defer server.Close()
+	t.Run("Get multiple People", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			rw.Write([]byte(people))
 
-// 	client := NewWebexClient("FAKETOKEN")
-// 	client.httpClient = server.Client()
-// 	client.baseURL = server.URL
+		}))
+		defer server.Close()
+		client := NewWebexClient("FAKETOKEN")
+		client.httpClient = server.Client()
+		client.baseURL = server.URL
+		_, err := client.GetPersonInformation("AAAA")
+		notOk(t, err)
+		equals(t, "id %s belongs to two different persons ?!?", err.Error())
+	})
 
-// 	err := client.SendMessageToRoom("MyMessage", "ABCD")
+	t.Run("Get No People", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			rw.Write([]byte(noPeople))
 
-// 	notOk(t, err)
-// }
+		}))
+		defer server.Close()
+		client := NewWebexClient("FAKETOKEN")
+		client.httpClient = server.Client()
+		client.baseURL = server.URL
+		_, err := client.GetPersonInformation("AAAA")
+		notOk(t, err)
+		equals(t, "person not found", err.Error())
+	})
+}
+
+func TestNotOkUri(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		rw.WriteHeader(400)
+	}))
+	defer server.Close()
+	client := NewWebexClient("FAKETOKEN")
+	client.httpClient = server.Client()
+	client.baseURL = server.URL
+
+	t.Run("Send Message Error", func(t *testing.T) {
+		err := client.SendMessageToRoom("A Text", "AAA")
+		notOk(t, err)
+		equals(t, strings.Contains(err.Error(), "error processing this request"), true)
+	})
+
+	t.Run("Get Message by Id Error", func(t *testing.T) {
+		_, err := client.GetMessageById("AAA")
+		notOk(t, err)
+		equals(t, strings.Contains(err.Error(), "error processing this request"), true)
+	})
+
+	t.Run("Get Room Error", func(t *testing.T) {
+		_, err := client.GetRoomById("AAA")
+		notOk(t, err)
+		equals(t, strings.Contains(err.Error(), "error processing this request"), true)
+	})
+
+	t.Run("Get Rooms Error", func(t *testing.T) {
+		_, err := client.GetRooms()
+		notOk(t, err)
+		equals(t, strings.Contains(err.Error(), "error processing this request"), true)
+	})
+
+	t.Run("Get Webooks Error", func(t *testing.T) {
+		_, err := client.GetWebHooks()
+		notOk(t, err)
+		equals(t, strings.Contains(err.Error(), "error processing this request"), true)
+	})
+
+	t.Run("Create Webooks Error", func(t *testing.T) {
+		err := client.CreateWebhook("Test Webhook", "http://test.com", "message", "created")
+		notOk(t, err)
+		equals(t, strings.Contains(err.Error(), "error processing this request"), true)
+	})
+
+	t.Run("Update Webooks Error", func(t *testing.T) {
+		err := client.UpdateWebhook("New Name", "https://test.com", "BBBB")
+		notOk(t, err)
+		equals(t, strings.Contains(err.Error(), "error processing this request"), true)
+	})
+
+	t.Run("Delete Webooks Error", func(t *testing.T) {
+		err := client.DeleteWebhook("BBBB")
+		notOk(t, err)
+		equals(t, strings.Contains(err.Error(), "error processing this request"), true)
+	})
+
+	t.Run("Get People Me Error", func(t *testing.T) {
+		_, err := client.GetBotDetails()
+		notOk(t, err)
+		equals(t, strings.Contains(err.Error(), "error processing this request"), true)
+	})
+
+	t.Run("Get Person Error", func(t *testing.T) {
+		_, err := client.GetPersonInformation("BBB")
+		notOk(t, err)
+		equals(t, strings.Contains(err.Error(), "error processing this request"), true)
+	})
+}

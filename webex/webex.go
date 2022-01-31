@@ -25,7 +25,6 @@ type WebexInterface interface {
 	DeleteWebhook(id string) error
 	CreateWebhook(name, url, resource, event string) error
 	GetPersonInformation(id string) (WebexPeople, error)
-	GetMessages(roomId string, max int, filter ...string) ([]WebexMessage, error)
 	GetMessageById(id string) (WebexMessage, error)
 	GetRoomById(roomId string) (WebexRoom, error)
 }
@@ -128,23 +127,6 @@ func (wbx *WebexClient) GetPersonInformation(id string) (WebexPeople, error) {
 		return WebexPeople{}, errors.New("person not found")
 	}
 	return result.People[0], nil
-}
-
-// Get N number of message from room ID. Filter usage optinal
-func (wbx *WebexClient) GetMessages(roomId string, max int, filter ...string) ([]WebexMessage, error) {
-	var result WebexMessagesReply
-
-	url := fmt.Sprintf("/v1/messages?roomId=%s&max=%d", roomId, max)
-	for _, f := range filter {
-		url += fmt.Sprintf("&%s", f)
-	}
-
-	err := wbx.processMessage(http.MethodGet, url, nil, &result)
-	if err != nil {
-		return result.Messages, err
-	}
-
-	return result.Messages, nil
 }
 
 // Get message information by  ID

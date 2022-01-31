@@ -12,12 +12,7 @@ import (
 	"time"
 )
 
-// HttpClient interface type.
-type HttpClient interface {
-	Do(req *http.Request) (*http.Response, error)
-}
-
-// TODO: Change name
+// Webex interface. Implemented by WebexClient and WebexClientMocks
 type WebexInterface interface {
 	SendMessageToRoom(m string, roomId string) error
 	GetBotDetails() (WebexPeople, error)
@@ -30,7 +25,7 @@ type WebexInterface interface {
 }
 
 type WebexClient struct {
-	httpClient HttpClient // Webex Client expect an HttpClient interface type
+	httpClient *http.Client // Webex Client expect an HttpClient interface type
 	tkn        string
 	baseURL    string
 }

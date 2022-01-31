@@ -484,7 +484,6 @@ func readWebsocket(b *Bot) {
 	for {
 
 		subId, events := b.wsck.ReadSocketEvent()
-		log.Println(events)
 		className := b.wsSubs.getClassNamebySubId(subId)
 
 		msg := "<ul>"

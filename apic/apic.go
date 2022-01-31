@@ -14,10 +14,13 @@ import (
 	"time"
 )
 
+// Type to define the APIC client configuration option
 type Option func(*ApicClient)
 
+// type to define the APIC MO Attributes
 type ApicMoAttributes map[string]string
 
+// Struct to store Fabric information. See GetFabricInformation()
 type FabricInformation struct {
 	Name   string
 	Url    string
@@ -28,6 +31,7 @@ type FabricInformation struct {
 	Health string
 }
 
+// Struct to store Endpoint information. See GetEndpointInformation()
 type EndpointInformation struct {
 	Mac      string
 	Ips      []string
@@ -37,10 +41,12 @@ type EndpointInformation struct {
 	Epg      string
 }
 
+// Interface used to mock the HTTP Client
 type HttpClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
+// Apic interface. Implemented by ApicClient and ApicClientMocks
 type ApicInterface interface {
 	Login() error
 	GetIp() string
@@ -55,24 +61,28 @@ type ApicInterface interface {
 	GetLatestEvents(c string, usr ...string) ([]ApicMoAttributes, error)
 }
 
+// Apic Client struct
 type ApicClient struct {
-	httpClient HttpClient
+	httpClient HttpClient // It points to an interface. Used for mocking
 	usr        string
 	pwd        string
 	tkn        string
 	baseURL    string
 }
 
+// Package level variable to define which objects is used as http client (Mock or the standard)
 var (
 	Client HttpClient
 )
 
+// Function executed upon package import. By default the httpClient is the standard http Client form the net/http library
 func init() {
 	Client = &http.Client{
 		Timeout: 3 * time.Second,
 	}
 }
 
+// The client timeout
 func SetTimeout(t time.Duration) Option {
 	return func(client *ApicClient) {
 		switch client.httpClient.(type) {
@@ -84,17 +94,7 @@ func SetTimeout(t time.Duration) Option {
 	}
 }
 
-func SetWebSocket(t time.Duration) Option {
-	return func(client *ApicClient) {
-		switch client.httpClient.(type) {
-		case *http.Client:
-			client.httpClient.(*http.Client).Timeout = t * time.Second
-		case *mocks.MockClient:
-			client.httpClient.(*mocks.MockClient).Timeout = t * time.Second
-		}
-	}
-}
-
+// Create new APIC client
 func NewApicClient(url, usr, pwd string, options ...Option) (*ApicClient, error) {
 	client := ApicClient{
 		usr:        usr,
@@ -114,15 +114,17 @@ func NewApicClient(url, usr, pwd string, options ...Option) (*ApicClient, error)
 	return &client, nil
 }
 
+// Get the client URL
 func (client *ApicClient) GetIp() string {
 	return client.baseURL
 }
 
+// Get the current valid token
 func (client *ApicClient) GetToken() string {
 	return client.tkn
 }
 
-// TODO: Use a generic version of _getApicClass_ that uses all the HTTP Verbs
+// Login to the APIC
 func (client *ApicClient) Login() error {
 
 	var result map[string]interface{}
@@ -143,6 +145,7 @@ func (client *ApicClient) Login() error {
 	return nil
 }
 
+// Refresh subscription
 func (client *ApicClient) WsSubcriptionRefresh(id string) error {
 	var result map[string]interface{}
 	req, err := client.makeCall(http.MethodGet, fmt.Sprintf("/api/subscriptionRefresh.json?id=%s", id), nil)
@@ -157,6 +160,7 @@ func (client *ApicClient) WsSubcriptionRefresh(id string) error {
 	return nil
 }
 
+// Subscribe to class events
 func (client *ApicClient) WsClassSubscription(c string) (string, error) {
 	var result map[string]interface{}
 	req, err := client.makeCall(http.MethodGet, fmt.Sprintf("/api/class/%s.json?subscription=yes&refresh-timeout=120?query-target=subtree", c), nil)
@@ -170,6 +174,9 @@ func (client *ApicClient) WsClassSubscription(c string) (string, error) {
 	}
 	return result["subscriptionId"].(string), nil
 }
+
+// Get the latest fabric events.
+// Filtering based on username is optional
 func (client *ApicClient) GetLatestEvents(c string, usr ...string) ([]ApicMoAttributes, error) {
 
 	q := fmt.Sprintf("order-by=aaaModLR.created|desc&page-size=%s", c)
@@ -178,29 +185,33 @@ func (client *ApicClient) GetLatestEvents(c string, usr ...string) ([]ApicMoAttr
 		q += fmt.Sprintf("&query-target-filter=eq(aaaModLR.user,\"%s\")", u)
 	}
 
-	events, err := client.getApicClass("aaaModLR", q)
+	events, err := client.reqApicClass(http.MethodGet, "aaaModLR", q)
 	if err != nil {
 		return nil, err
 	}
 	return events, nil
 }
 
+// Get the latest fabric fault.
+// Filtering based on username is optional
 func (client *ApicClient) GetLatestFaults(c string) ([]ApicMoAttributes, error) {
 
-	faults, err := client.getApicClass("faultInst", "order-by=faultInst.lastTransition|desc", fmt.Sprintf("page-size=%s", c))
+	faults, err := client.reqApicClass(http.MethodGet, "faultInst", "order-by=faultInst.lastTransition|desc", fmt.Sprintf("page-size=%s", c))
 	if err != nil {
 		return nil, err
 	}
 	return faults, nil
 }
 
+// Get the Fabric LLDP and CDP neigh
+// Filter based on node id optional
 func (client *ApicClient) GetFabricNeighbors(nd string) (map[string][]string, error) {
 
-	cdpN, err := client.getApicClass("cdpAdjEp")
+	cdpN, err := client.reqApicClass(http.MethodGet, "cdpAdjEp")
 	if err != nil {
 		return nil, err
 	}
-	lldpN, err := client.getApicClass("lldpAdjEp")
+	lldpN, err := client.reqApicClass(http.MethodGet, "lldpAdjEp")
 	if err != nil {
 		return nil, err
 	}
@@ -216,24 +227,26 @@ func (client *ApicClient) GetFabricNeighbors(nd string) (map[string][]string, er
 	return neighMap, nil
 }
 
+// Get information of the fabric
+// Number of switches, Pods, Health
 func (client *ApicClient) GetFabricInformation() (FabricInformation, error) {
 
 	var info FabricInformation
 
 	// Get the values from the APIC
-	banner, err := client.getApicClass("aaaPreLoginBanner")
+	banner, err := client.reqApicClass(http.MethodGet, "aaaPreLoginBanner")
 	if err != nil {
 		return FabricInformation{}, err
 	}
-	pods, err := client.getApicClass("fabricPod")
+	pods, err := client.reqApicClass(http.MethodGet, "fabricPod")
 	if err != nil {
 		return FabricInformation{}, err
 	}
-	nodes, err := client.getApicClass("fabricNode")
+	nodes, err := client.reqApicClass(http.MethodGet, "fabricNode")
 	if err != nil {
 		return FabricInformation{}, err
 	}
-	health, err := client.getApicClass("fabricOverallHealthHist5min", "query-target-filter=and(eq(fabricOverallHealthHist5min.dn,\"topology/HDfabricOverallHealth5min-0\"))")
+	health, err := client.reqApicClass(http.MethodGet, "fabricOverallHealthHist5min", "query-target-filter=and(eq(fabricOverallHealthHist5min.dn,\"topology/HDfabricOverallHealth5min-0\"))")
 	if err != nil {
 		return FabricInformation{}, err
 	}
@@ -262,9 +275,10 @@ func (client *ApicClient) GetFabricInformation() (FabricInformation, error) {
 	return info, nil
 }
 
+// Get information from an specific enpoint [MAC]
 func (client *ApicClient) GetEndpointInformation(m string) ([]EndpointInformation, error) {
 	var info []EndpointInformation
-	ep, err := client.getApicClass("fvCEp", fmt.Sprintf("query-target-filter=eq(fvCEp.mac,\"%s\")", m))
+	ep, err := client.reqApicClass(http.MethodGet, "fvCEp", fmt.Sprintf("query-target-filter=eq(fvCEp.mac,\"%s\")", m))
 	if err != nil {
 		return []EndpointInformation{}, err
 	}
@@ -302,15 +316,17 @@ func (client *ApicClient) GetEndpointInformation(m string) ([]EndpointInformatio
 	return info, nil
 }
 
+// Get procEntity class
 func (client *ApicClient) GetProcEntity() ([]ApicMoAttributes, error) {
-	proc, err := client.getApicClass("procEntity")
+	proc, err := client.reqApicClass(http.MethodGet, "procEntity")
 	if err != nil {
 		return nil, err
 	}
 	return proc, nil
 }
 
-func (client *ApicClient) getMoChildren(parent string, children string, query string) ([]ApicMoAttributes, error) {
+// Get children Objects from an specific class
+func (client *ApicClient) getMoChildren(parent, children, query string) ([]ApicMoAttributes, error) {
 	var result map[string]interface{}
 	url := fmt.Sprintf("/api/node/class/%s.json?rsp-subtree=children&rsp-subtree-class=%s&query-target-filter=%s", parent, children, query)
 	req, err := client.makeCall(http.MethodGet, url, nil)
@@ -326,9 +342,11 @@ func (client *ApicClient) getMoChildren(parent string, children string, query st
 	return getApicManagedObjectsChildren(result, parent, children), nil
 }
 
-func (client *ApicClient) getApicClass(n string, filter ...string) ([]ApicMoAttributes, error) {
+// Generic request for an APIC Class/MO. Only works for the /apic/node/class URI
+// Server-side filtering is optional
+func (client *ApicClient) reqApicClass(m, c string, filter ...string) ([]ApicMoAttributes, error) {
 	var result map[string]interface{}
-	url := fmt.Sprintf("/api/node/class/%s.json", n)
+	url := fmt.Sprintf("/api/node/class/%s.json", c)
 
 	// TODO: How to improve this
 	if len(filter) > 0 {
@@ -337,7 +355,7 @@ func (client *ApicClient) getApicClass(n string, filter ...string) ([]ApicMoAttr
 	for _, f := range filter {
 		url += "&" + f
 	}
-	req, err := client.makeCall(http.MethodGet, url, nil)
+	req, err := client.makeCall(m, url, nil)
 
 	if err != nil {
 		return nil, err
@@ -347,9 +365,10 @@ func (client *ApicClient) getApicClass(n string, filter ...string) ([]ApicMoAttr
 		log.Println("Error: ", err)
 		return nil, err
 	}
-	return getApicManagedObjects(result, n), nil
+	return getApicManagedObjects(result, c), nil
 }
 
+// Create HTTP Request
 func (client *ApicClient) makeCall(m string, url string, p io.Reader) (*http.Request, error) {
 	req, err := http.NewRequest(m, client.baseURL+url, p)
 	if err != nil {
@@ -364,13 +383,13 @@ func (client *ApicClient) makeCall(m string, url string, p io.Reader) (*http.Req
 	return req, nil
 }
 
+// Execute HTTP Request
 func (client *ApicClient) doCall(req *http.Request, res interface{}) error {
 	resp, err := client.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
 
-	// Why defer ?
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 
@@ -383,7 +402,6 @@ func (client *ApicClient) doCall(req *http.Request, res interface{}) error {
 	}
 
 	if err = json.Unmarshal(body, &res); err != nil {
-		// TODO: Check error message
 		return err
 	}
 	return nil

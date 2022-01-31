@@ -389,3 +389,219 @@ func TestGetEndpointInformation(t *testing.T) {
 		equals(t, info[0].Location[2], map[string]string{"nodes": "1202", "pod": "2", "port": "[eth1/10]", "type": "Access"})
 	})
 }
+
+func TestGetFabricNeighbors(t *testing.T) {
+	Client = &mocks.MockClient{}
+	login := `{
+		"totalCount": "1",
+		"imdata": [
+			{
+				"aaaLogin": {
+					"attributes": {
+						"token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InJqcmRjazBuNW"
+					}
+				}
+			}
+		]
+	}`
+	cdp := `{
+		"totalCount": "2",
+		"imdata": [
+			{
+				"cdpAdjEp": {
+					"attributes": {
+						"dn": "topology/pod-1/node-101/sys/cdp/inst/if-[eth1/1]/adj-1",
+						"sysName": "SW-1"
+					}
+				}
+			},
+			{
+				"cdpAdjEp": {
+					"attributes": {
+						"dn": "topology/pod-1/node-101/sys/cdp/inst/if-[eth1/2]/adj-1",
+						"sysName": "SW-2"
+					}
+				}
+			}
+		]
+	}`
+	lldp := `{
+		"totalCount": "2",
+		"imdata": [
+			{
+				"lldpAdjEp": {
+					"attributes": {
+						"dn": "topology/pod-1/node-102/sys/cdp/inst/if-[eth2/1]/adj-1",
+						"sysName": "SW-3"
+					}
+				}
+			},
+			{
+				"lldpAdjEp": {
+					"attributes": {
+						"dn": "topology/pod-1/node-101/sys/cdp/inst/if-[eth2/2]/adj-1",
+						"sysName": "SW-2"
+					}
+				}
+			}
+		]
+	}`
+	mocks.GetDoFunc = func(req *http.Request) (*http.Response, error) {
+		if strings.Contains(req.URL.Path, "aaaLogin") {
+			return &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(login)))}, nil
+		} else if strings.Contains(req.URL.Path, "/api/node/class/cdpAdjEp.json") {
+			return &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(cdp)))}, nil
+		} else if strings.Contains(req.URL.Path, "/api/node/class/lldpAdjEp.json") {
+			return &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(lldp)))}, nil
+		}
+		return nil, nil
+	}
+	clt, _ := NewApicClient("http://mocking.com", "admin", "admin", SetTimeout(8))
+	t.Run("All neighbors", func(t *testing.T) {
+		neigh, _ := clt.GetFabricNeighbors("all")
+		equals(t, len(neigh), 3)
+		equals(t, neigh["SW-1"], []string{"101:[eth1/1]"})
+		equals(t, neigh["SW-2"], []string{"101:[eth1/2]", "101:[eth2/2]"})
+		equals(t, neigh["SW-3"], []string{"102:[eth2/1]"})
+	})
+
+	t.Run("Node 101", func(t *testing.T) {
+		neigh, _ := clt.GetFabricNeighbors("101")
+		equals(t, len(neigh), 2)
+		equals(t, neigh["SW-1"], []string{"101:[eth1/1]"})
+		equals(t, neigh["SW-2"], []string{"101:[eth1/2]", "101:[eth2/2]"})
+	})
+}
+
+func TestGetLatestFaults(t *testing.T) {
+	Client = &mocks.MockClient{}
+	login := `{
+		"totalCount": "1",
+		"imdata": [
+			{
+				"aaaLogin": {
+					"attributes": {
+						"token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InJqcmRjazBuNW"
+					}
+				}
+			}
+		]
+	}`
+	faults := `{
+		"totalCount": "3",
+		"imdata": [
+			{
+				"faultInst": {
+					"attributes": {
+						"ack": "no",
+						"alert": "no",
+						"cause": "resolution-failed",
+						"changeSet": "state (Old: formed, New: missing-target)",
+						"childAction": "",
+						"code": "F1123",
+						"created": "2021-10-31T20:15:05.725+01:00",
+						"delegated": "no",
+						"descr": "Failed to form relation to MO uni/tn-tenant/brc-CON_A of class vzBrCP",
+						"dn": "uni/tn-tenant/cif-CON_IFACE/rsif/fault-F1123",
+						"domain": "infra",
+						"highestSeverity": "warning",
+						"lastTransition": "2021-10-31T20:15:05.725+01:00",
+						"lc": "raised",
+						"occur": "1",
+						"origSeverity": "warning",
+						"prevSeverity": "warning",
+						"rule": "vz-rs-if-resolve-fail",
+						"severity": "warning",
+						"status": "",
+						"subject": "relation-resolution",
+						"title": "null",
+						"type": "config"
+					}
+				}
+			}
+		]
+	}`
+	mocks.GetDoFunc = func(req *http.Request) (*http.Response, error) {
+		if strings.Contains(req.URL.Path, "aaaLogin") {
+			return &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(login)))}, nil
+		} else if strings.Contains(req.URL.Path, "/api/node/class/faultInst.json") {
+			return &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(faults)))}, nil
+		}
+		return nil, nil
+	}
+	clt, _ := NewApicClient("http://mocking.com", "admin", "admin", SetTimeout(8))
+	t.Run("Errorless Call", func(t *testing.T) {
+		fault, _ := clt.GetLatestFaults("all")
+		equals(t, len(fault), 1)
+		equals(t, fault[0]["dn"], "uni/tn-tenant/cif-CON_IFACE/rsif/fault-F1123")
+		equals(t, fault[0]["severity"], "warning")
+	})
+
+}
+
+func TestGetLatestEvents(t *testing.T) {
+	Client = &mocks.MockClient{}
+	login := `{
+		"totalCount": "1",
+		"imdata": [
+			{
+				"aaaLogin": {
+					"attributes": {
+						"token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InJqcmRjazBuNW"
+					}
+				}
+			}
+		]
+	}`
+	events := `{
+		"totalCount": "3",
+		"imdata": [
+			{
+				"aaaModLR": {
+					"attributes": {
+						"affected": "uni/tn-myTenant/ap-AP1/epg-EP1",
+						"cause": "transition",
+						"changeSet": "",
+						"childAction": "",
+						"clientTag": "",
+						"code": "E4211938",
+						"created": "2021-10-28T07:32:34.846+01:00",
+						"descr": "AEPg EP1 deleted",
+						"dn": "subj-[uni/tn-myTenant/ap-AP1/epg-EP1]/mod-4295233655",
+						"id": "4295233655",
+						"ind": "deletion",
+						"modTs": "never",
+						"sessionId": "iEesZLm8RRy7B23FqyW3eQ==",
+						"severity": "info",
+						"status": "",
+						"trig": "config",
+						"txId": "576460752332323773",
+						"user": "user1"
+					}
+				}
+			}
+		]
+	}`
+	mocks.GetDoFunc = func(req *http.Request) (*http.Response, error) {
+		if strings.Contains(req.URL.Path, "aaaLogin") {
+			return &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(login)))}, nil
+		} else if strings.Contains(req.URL.Path, "/api/node/class/aaaModLR.json") {
+			return &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(events)))}, nil
+		}
+		return nil, nil
+	}
+	clt, _ := NewApicClient("http://mocking.com", "admin", "admin", SetTimeout(8))
+	t.Run("Errorless Call", func(t *testing.T) {
+		fault, _ := clt.GetLatestEvents("1")
+		equals(t, len(fault), 1)
+		equals(t, fault[0]["dn"], "subj-[uni/tn-myTenant/ap-AP1/epg-EP1]/mod-4295233655")
+		equals(t, fault[0]["user"], "user1")
+	})
+	t.Run("Errorless Call", func(t *testing.T) {
+		fault, _ := clt.GetLatestEvents("1", "user1")
+		equals(t, len(fault), 1)
+		equals(t, fault[0]["dn"], "subj-[uni/tn-myTenant/ap-AP1/epg-EP1]/mod-4295233655")
+		equals(t, fault[0]["user"], "user1")
+	})
+
+}

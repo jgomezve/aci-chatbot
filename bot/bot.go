@@ -124,7 +124,7 @@ func websocketCommand(wsDb *webSocketDb) Callback {
 			// /websocket xxxx -> Add subscirption to this Room
 		} else {
 			if !wsDb.checkSubsciption(class, wm.roomId) {
-				id, err := c.WsClassSubscription(class)
+				id, err := c.SubscribeClassWebSocket(class)
 				if err != nil {
 					return fmt.Sprintf("Hi %s 🤖 !\n Sorry... I could not subscribe to the class <code>%s</code>", wm.sender, class)
 				}

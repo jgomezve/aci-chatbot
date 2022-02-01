@@ -52,7 +52,7 @@ type ApicInterface interface {
 	GetIp() string
 	GetToken() string
 	GetProcEntity() ([]ApicMoAttributes, error)
-	WsClassSubscription(c string) (string, error)
+	SubscribeClassWebSocket(c string) (string, error)
 	WsSubcriptionRefresh(id string) error
 	GetFabricInformation() (FabricInformation, error)
 	GetEndpointInformation(m string) ([]EndpointInformation, error)
@@ -161,7 +161,7 @@ func (client *ApicClient) WsSubcriptionRefresh(id string) error {
 }
 
 // Subscribe to class events
-func (client *ApicClient) WsClassSubscription(c string) (string, error) {
+func (client *ApicClient) SubscribeClassWebSocket(c string) (string, error) {
 	var result map[string]interface{}
 	req, err := client.makeCall(http.MethodGet, fmt.Sprintf("/api/class/%s.json?subscription=yes&refresh-timeout=120?query-target=subtree", c), nil)
 
@@ -400,7 +400,7 @@ func (client *ApicClient) doCall(req *http.Request, res interface{}) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("error processing this request %s\n API message %s", req.URL, body)
 	}
-
+	//fmt.Printf("%s", body)
 	if err = json.Unmarshal(body, &res); err != nil {
 		return err
 	}

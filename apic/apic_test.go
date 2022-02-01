@@ -15,7 +15,23 @@ import (
 	"time"
 )
 
-// Helper function
+// Helper functions
+func ok(tb testing.TB, err error) {
+	if err != nil {
+		_, file, line, _ := runtime.Caller(1)
+		fmt.Printf("\033[31m%s:%d: unexpected error: %s\033[39m\n\n", filepath.Base(file), line, err.Error())
+		tb.FailNow()
+	}
+}
+
+func notOk(tb testing.TB, err error) {
+	if err == nil {
+		_, file, line, _ := runtime.Caller(1)
+		fmt.Printf("\033[31m%s:%d: unexpected error: %s\033[39m\n\n", filepath.Base(file), line, err.Error())
+		tb.FailNow()
+	}
+}
+
 func equals(tb testing.TB, act, exp interface{}) {
 	if !reflect.DeepEqual(exp, act) {
 		_, file, line, _ := runtime.Caller(1)
@@ -45,7 +61,8 @@ func TestApicClientCreation(t *testing.T) {
 			r := ioutil.NopCloser(bytes.NewReader([]byte(json)))
 			return &http.Response{StatusCode: 200, Body: r}, nil
 		}
-		clt, _ := NewApicClient("http://mocking.com", "admin", "admin")
+		clt, err := NewApicClient("http://mocking.com", "admin", "admin")
+		ok(t, err)
 		equals(t, clt.baseURL, "http://mocking.com")
 		equals(t, clt.tkn, "eyJhbGciOiJSUzI1NiIsImtpZCI6InJqcmRjazBuNW")
 	})
@@ -55,7 +72,8 @@ func TestApicClientCreation(t *testing.T) {
 			r := ioutil.NopCloser(bytes.NewReader([]byte(json)))
 			return &http.Response{StatusCode: 200, Body: r}, nil
 		}
-		clt, _ := NewApicClient("http://mocking.com", "admin", "admin", SetTimeout(8))
+		clt, err := NewApicClient("http://mocking.com", "admin", "admin", SetTimeout(8))
+		ok(t, err)
 		equals(t, clt.baseURL, "http://mocking.com")
 		equals(t, clt.tkn, "eyJhbGciOiJSUzI1NiIsImtpZCI6InJqcmRjazBuNW")
 		equals(t, clt.httpClient.(*mocks.MockClient).Timeout, 8*time.Second)
@@ -138,6 +156,7 @@ func TestGetProcEntity(t *testing.T) {
 		}
 		clt, _ := NewApicClient("http://mocking.com", "admin", "admin", SetTimeout(8))
 		_, err := clt.GetProcEntity()
+		notOk(t, err)
 		equals(t, err, errors.New("Generic HTTP Error"))
 	})
 }
@@ -243,7 +262,8 @@ func TestGetFabricInformation(t *testing.T) {
 			return nil, nil
 		}
 		clt, _ := NewApicClient("http://mocking.com", "admin", "admin", SetTimeout(8))
-		info, _ := clt.GetFabricInformation()
+		info, err := clt.GetFabricInformation()
+		ok(t, err)
 		equals(t, info.Name, "CX Fabric")
 		equals(t, info.Health, "95")
 		equals(t, info.Apics[0]["name"], "apic1")
@@ -376,7 +396,8 @@ func TestGetEndpointInformation(t *testing.T) {
 			return nil, nil
 		}
 		clt, _ := NewApicClient("http://mocking.com", "admin", "admin", SetTimeout(8))
-		info, _ := clt.GetEndpointInformation("00:50:56:96:A0:D3")
+		info, err := clt.GetEndpointInformation("00:50:56:96:A0:D3")
+		ok(t, err)
 		equals(t, info[0].Mac, "00:50:56:96:A0:D3")
 		equals(t, info[0].Tenant, "test_tenant")
 		equals(t, info[0].App, "Test-AP")
@@ -458,7 +479,8 @@ func TestGetFabricNeighbors(t *testing.T) {
 	}
 	clt, _ := NewApicClient("http://mocking.com", "admin", "admin", SetTimeout(8))
 	t.Run("All neighbors", func(t *testing.T) {
-		neigh, _ := clt.GetFabricNeighbors("all")
+		neigh, err := clt.GetFabricNeighbors("all")
+		ok(t, err)
 		equals(t, len(neigh), 3)
 		equals(t, neigh["SW-1"], []string{"101:[eth1/1]"})
 		equals(t, neigh["SW-2"], []string{"101:[eth1/2]", "101:[eth2/2]"})
@@ -466,7 +488,8 @@ func TestGetFabricNeighbors(t *testing.T) {
 	})
 
 	t.Run("Node 101", func(t *testing.T) {
-		neigh, _ := clt.GetFabricNeighbors("101")
+		neigh, err := clt.GetFabricNeighbors("101")
+		ok(t, err)
 		equals(t, len(neigh), 2)
 		equals(t, neigh["SW-1"], []string{"101:[eth1/1]"})
 		equals(t, neigh["SW-2"], []string{"101:[eth1/2]", "101:[eth2/2]"})
@@ -488,7 +511,7 @@ func TestGetLatestFaults(t *testing.T) {
 		]
 	}`
 	faults := `{
-		"totalCount": "3",
+		"totalCount": "1",
 		"imdata": [
 			{
 				"faultInst": {
@@ -531,14 +554,14 @@ func TestGetLatestFaults(t *testing.T) {
 	}
 	clt, _ := NewApicClient("http://mocking.com", "admin", "admin", SetTimeout(8))
 	t.Run("Errorless Call", func(t *testing.T) {
-		fault, _ := clt.GetLatestFaults("all")
+		fault, err := clt.GetLatestFaults("all")
+		ok(t, err)
 		equals(t, len(fault), 1)
 		equals(t, fault[0]["dn"], "uni/tn-tenant/cif-CON_IFACE/rsif/fault-F1123")
 		equals(t, fault[0]["severity"], "warning")
 	})
 
 }
-
 func TestGetLatestEvents(t *testing.T) {
 	Client = &mocks.MockClient{}
 	login := `{
@@ -591,17 +614,77 @@ func TestGetLatestEvents(t *testing.T) {
 		return nil, nil
 	}
 	clt, _ := NewApicClient("http://mocking.com", "admin", "admin", SetTimeout(8))
-	t.Run("Errorless Call", func(t *testing.T) {
-		fault, _ := clt.GetLatestEvents("1")
+	t.Run("Get All Events", func(t *testing.T) {
+		fault, err := clt.GetLatestEvents("1")
+		ok(t, err)
 		equals(t, len(fault), 1)
 		equals(t, fault[0]["dn"], "subj-[uni/tn-myTenant/ap-AP1/epg-EP1]/mod-4295233655")
 		equals(t, fault[0]["user"], "user1")
 	})
-	t.Run("Errorless Call", func(t *testing.T) {
-		fault, _ := clt.GetLatestEvents("1", "user1")
+	t.Run("Get Events from User", func(t *testing.T) {
+		fault, err := clt.GetLatestEvents("1", "user1")
+		ok(t, err)
 		equals(t, len(fault), 1)
 		equals(t, fault[0]["dn"], "subj-[uni/tn-myTenant/ap-AP1/epg-EP1]/mod-4295233655")
 		equals(t, fault[0]["user"], "user1")
+	})
+
+}
+
+func TestSubscribeClassWebSocket(t *testing.T) {
+	Client = &mocks.MockClient{}
+	login := `{
+		"totalCount": "1",
+		"imdata": [
+			{
+				"aaaLogin": {
+					"attributes": {
+						"token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InJqcmRjazBuNW"
+					}
+				}
+			}
+		]
+	}`
+	subscription := `{
+		"totalCount": "1",
+		"subscriptionId": "72079567111979009",
+		"imdata": [
+			{
+				"fvTenant": {
+					"attributes": {
+						"annotation": "",
+						"childAction": "",
+						"descr": "",
+						"dn": "uni/tn-myTenant",
+						"extMngdBy": "",
+						"lcOwn": "local",
+						"modTs": "2021-02-18T21:55:58.121+01:00",
+						"monPolDn": "uni/tn-common/monepg-default",
+						"name": "myTenant",
+						"nameAlias": "",
+						"ownerKey": "",
+						"ownerTag": "",
+						"status": "",
+						"uid": "9152",
+						"userdom": ":all:mgmt:common:"
+					}
+				}
+			}
+		]
+	}`
+	mocks.GetDoFunc = func(req *http.Request) (*http.Response, error) {
+		if strings.Contains(req.URL.Path, "aaaLogin") {
+			return &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(login)))}, nil
+		} else if strings.Contains(req.URL.Path, "/api/class/fvTenant") {
+			return &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(subscription)))}, nil
+		}
+		return nil, nil
+	}
+	clt, _ := NewApicClient("http://mocking.com", "admin", "admin", SetTimeout(8))
+	t.Run("Get All Events", func(t *testing.T) {
+		subId, err := clt.SubscribeClassWebSocket("fvTenant")
+		ok(t, err)
+		equals(t, subId, "72079567111979009")
 	})
 
 }

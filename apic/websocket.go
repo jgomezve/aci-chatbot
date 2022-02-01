@@ -62,7 +62,6 @@ func (aws *ApicWebSocket) ReadSocketEvent() (string, []map[string]interface{}) {
 	var events []map[string]interface{}
 
 	aws.readSocket(&result)
-	log.Println(result)
 
 	for _, item := range result["imdata"].([]interface{}) {
 		event := make(map[string]interface{})

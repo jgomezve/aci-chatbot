@@ -61,11 +61,11 @@ func (ac *ApicClientMocks) GetLatestFaults(c string) ([]ApicMoAttributes, error)
 	return ac.GetLatestFaultsF(c)
 }
 
-func (ac *ApicClientMocks) WsClassSubscription(c string) (string, error) {
+func (ac *ApicClientMocks) SubscribeClassWebSocket(c string) (string, error) {
 	return "", nil
 }
 
-func (ac *ApicClientMocks) WsSubcriptionRefresh(id string) error {
+func (ac *ApicClientMocks) RefreshSubscriptionWebSocket(id string) error {
 	return nil
 }
 

@@ -24,6 +24,7 @@ type WebexInterface interface {
 	GetRoomById(roomId string) (WebexRoom, error)
 }
 
+// Webex Client struct
 type WebexClient struct {
 	httpClient *http.Client // Webex Client expect an HttpClient interface type
 	tkn        string

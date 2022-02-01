@@ -517,7 +517,7 @@ func refreshApicClient(b *Bot, t int) {
 		case <-tickerWs.C:
 			for class, subId := range b.wsSubs.getActiveSubscriptions() {
 				log.Printf("Refreshing subscription %s - %s", class, subId)
-				b.apic.WsSubcriptionRefresh(subId)
+				b.apic.RefreshSubscriptionWebSocket(subId)
 			}
 		}
 	}

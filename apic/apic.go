@@ -53,7 +53,7 @@ type ApicInterface interface {
 	GetToken() string
 	GetProcEntity() ([]ApicMoAttributes, error)
 	SubscribeClassWebSocket(c string) (string, error)
-	WsSubcriptionRefresh(id string) error
+	RefreshSubscriptionWebSocket(id string) error
 	GetFabricInformation() (FabricInformation, error)
 	GetEndpointInformation(m string) ([]EndpointInformation, error)
 	GetFabricNeighbors(nd string) (map[string][]string, error)
@@ -146,7 +146,7 @@ func (client *ApicClient) Login() error {
 }
 
 // Refresh subscription
-func (client *ApicClient) WsSubcriptionRefresh(id string) error {
+func (client *ApicClient) RefreshSubscriptionWebSocket(id string) error {
 	var result map[string]interface{}
 	req, err := client.makeCall(http.MethodGet, fmt.Sprintf("/api/subscriptionRefresh.json?id=%s", id), nil)
 
@@ -369,7 +369,7 @@ func (client *ApicClient) reqApicClass(m, c string, filter ...string) ([]ApicMoA
 }
 
 // Create HTTP Request
-func (client *ApicClient) makeCall(m string, url string, p io.Reader) (*http.Request, error) {
+func (client *ApicClient) makeCall(m, url string, p io.Reader) (*http.Request, error) {
 	req, err := http.NewRequest(m, client.baseURL+url, p)
 	if err != nil {
 		return nil, errors.New("unable to create a new HTTP request")
@@ -400,7 +400,7 @@ func (client *ApicClient) doCall(req *http.Request, res interface{}) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("error processing this request %s\n API message %s", req.URL, body)
 	}
-	//fmt.Printf("%s", body)
+
 	if err = json.Unmarshal(body, &res); err != nil {
 		return err
 	}

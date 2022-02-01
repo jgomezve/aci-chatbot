@@ -65,7 +65,7 @@ func (ac *ApicClientMocks) SubscribeClassWebSocket(c string) (string, error) {
 	return "", nil
 }
 
-func (ac *ApicClientMocks) WsSubcriptionRefresh(id string) error {
+func (ac *ApicClientMocks) RefreshSubscriptionWebSocket(id string) error {
 	return nil
 }
 

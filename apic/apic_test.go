@@ -43,7 +43,7 @@ func equals(tb testing.TB, act, exp interface{}) {
 func TestApicClientCreation(t *testing.T) {
 
 	Client = &mocks.MockClient{}
-	json := `{
+	login := `{
 		"totalCount": "1",
 		"imdata": [
 			{
@@ -55,28 +55,47 @@ func TestApicClientCreation(t *testing.T) {
 			}
 		]
 	}`
+	loginFail := `{
+		"totalCount": "1",
+		"imdata": [
+			{
+				"error": {
+					"attributes": {
+						"code": "401",
+						"text": "User credential is incorrect - FAILED local authentication"
+					}
+				}
+			}
+		]
+	}
+	`
 	t.Run("Create Raw Client", func(t *testing.T) {
 
 		mocks.GetDoFunc = func(*http.Request) (*http.Response, error) {
-			r := ioutil.NopCloser(bytes.NewReader([]byte(json)))
-			return &http.Response{StatusCode: 200, Body: r}, nil
+			return &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(login)))}, nil
 		}
 		clt, err := NewApicClient("http://mocking.com", "admin", "admin")
 		ok(t, err)
-		equals(t, clt.baseURL, "http://mocking.com")
-		equals(t, clt.tkn, "eyJhbGciOiJSUzI1NiIsImtpZCI6InJqcmRjazBuNW")
+		equals(t, clt.GetIp(), "http://mocking.com")
+		equals(t, clt.GetToken(), "eyJhbGciOiJSUzI1NiIsImtpZCI6InJqcmRjazBuNW")
 	})
 
 	t.Run("Create Client with Timeout", func(t *testing.T) {
 		mocks.GetDoFunc = func(*http.Request) (*http.Response, error) {
-			r := ioutil.NopCloser(bytes.NewReader([]byte(json)))
-			return &http.Response{StatusCode: 200, Body: r}, nil
+			return &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(login)))}, nil
 		}
 		clt, err := NewApicClient("http://mocking.com", "admin", "admin", SetTimeout(8))
 		ok(t, err)
 		equals(t, clt.baseURL, "http://mocking.com")
 		equals(t, clt.tkn, "eyJhbGciOiJSUzI1NiIsImtpZCI6InJqcmRjazBuNW")
 		equals(t, clt.httpClient.(*mocks.MockClient).Timeout, 8*time.Second)
+	})
+	t.Run("Create Client with wrong credentials", func(t *testing.T) {
+		mocks.GetDoFunc = func(*http.Request) (*http.Response, error) {
+			return &http.Response{StatusCode: 401, Body: ioutil.NopCloser(bytes.NewReader([]byte(loginFail)))}, nil
+		}
+		_, err := NewApicClient("http://mocking.com", "admin", "admin", SetTimeout(8))
+		notOk(t, err)
 	})
 }
 
@@ -464,6 +483,14 @@ func TestGetFabricNeighbors(t *testing.T) {
 						"sysName": "SW-2"
 					}
 				}
+			},
+			{
+				"lldpAdjEp": {
+					"attributes": {
+						"dn": "topology/pod-1/node-101/sys/cdp/inst/if-[eth1/2]/adj-1",
+						"sysName": "SW-2"
+					}
+				}
 			}
 		]
 	}`
@@ -544,21 +571,50 @@ func TestGetLatestFaults(t *testing.T) {
 			}
 		]
 	}`
-	mocks.GetDoFunc = func(req *http.Request) (*http.Response, error) {
-		if strings.Contains(req.URL.Path, "aaaLogin") {
-			return &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(login)))}, nil
-		} else if strings.Contains(req.URL.Path, "/api/node/class/faultInst.json") {
-			return &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(faults)))}, nil
-		}
-		return nil, nil
+	tokenExpired := `{
+		"totalCount": "1",
+		"imdata": [
+			{
+				"error": {
+					"attributes": {
+						"code": "403",
+						"text": "Token was invalid (Error: Token timeout)"
+					}
+				}
+			}
+		]
 	}
-	clt, _ := NewApicClient("http://mocking.com", "admin", "admin", SetTimeout(8))
+	`
 	t.Run("Errorless Call", func(t *testing.T) {
+		mocks.GetDoFunc = func(req *http.Request) (*http.Response, error) {
+			if strings.Contains(req.URL.Path, "aaaLogin") {
+				return &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(login)))}, nil
+			} else if strings.Contains(req.URL.Path, "/api/node/class/faultInst.json") {
+				return &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(faults)))}, nil
+			}
+			return nil, nil
+		}
+		clt, _ := NewApicClient("http://mocking.com", "admin", "admin", SetTimeout(8))
+
 		fault, err := clt.GetLatestFaults("all")
 		ok(t, err)
 		equals(t, len(fault), 1)
 		equals(t, fault[0]["dn"], "uni/tn-tenant/cif-CON_IFACE/rsif/fault-F1123")
 		equals(t, fault[0]["severity"], "warning")
+	})
+	t.Run("Unavailable Server", func(t *testing.T) {
+		mocks.GetDoFunc = func(req *http.Request) (*http.Response, error) {
+			if strings.Contains(req.URL.Path, "aaaLogin") {
+				return &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(login)))}, nil
+			} else if strings.Contains(req.URL.Path, "/api/node/class/faultInst.json") {
+				return &http.Response{StatusCode: 401, Body: ioutil.NopCloser(bytes.NewReader([]byte(tokenExpired)))}, nil
+			}
+			return nil, nil
+		}
+		clt, _ := NewApicClient("http://mocking.com", "admin", "admin", SetTimeout(8))
+
+		_, err := clt.GetLatestFaults("all")
+		notOk(t, err)
 	})
 
 }
@@ -628,7 +684,6 @@ func TestGetLatestEvents(t *testing.T) {
 		equals(t, fault[0]["dn"], "subj-[uni/tn-myTenant/ap-AP1/epg-EP1]/mod-4295233655")
 		equals(t, fault[0]["user"], "user1")
 	})
-
 }
 
 func TestSubscribeClassWebSocket(t *testing.T) {
@@ -681,10 +736,43 @@ func TestSubscribeClassWebSocket(t *testing.T) {
 		return nil, nil
 	}
 	clt, _ := NewApicClient("http://mocking.com", "admin", "admin", SetTimeout(8))
-	t.Run("Get All Events", func(t *testing.T) {
+	t.Run("Subscribe to class", func(t *testing.T) {
 		subId, err := clt.SubscribeClassWebSocket("fvTenant")
 		ok(t, err)
 		equals(t, subId, "72079567111979009")
 	})
+}
 
+func TestRefreshSubscriptionWebSocket(t *testing.T) {
+	Client = &mocks.MockClient{}
+	login := `{
+		"totalCount": "1",
+		"imdata": [
+			{
+				"aaaLogin": {
+					"attributes": {
+						"token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InJqcmRjazBuNW"
+					}
+				}
+			}
+		]
+	}`
+	refresh := `{
+		"totalCount": "0",
+		"imdata": [
+		]
+	}`
+	mocks.GetDoFunc = func(req *http.Request) (*http.Response, error) {
+		if strings.Contains(req.URL.Path, "aaaLogin") {
+			return &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(login)))}, nil
+		} else if strings.Contains(req.URL.Path, "/api/subscriptionRefresh") {
+			return &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader([]byte(refresh)))}, nil
+		}
+		return nil, nil
+	}
+	clt, _ := NewApicClient("http://mocking.com", "admin", "admin", SetTimeout(8))
+	t.Run("Refresh Subscription", func(t *testing.T) {
+		err := clt.RefreshSubscriptionWebSocket("fvTenant")
+		ok(t, err)
+	})
 }

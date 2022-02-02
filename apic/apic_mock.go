@@ -12,7 +12,6 @@ type ApicClientMocks struct {
 	GetLatestEventsF        func(c string, usr ...string) ([]ApicMoAttributes, error)
 }
 
-// TODO: check if this approach is valid
 var (
 	ApicMockClient ApicClientMocks
 )

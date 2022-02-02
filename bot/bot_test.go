@@ -371,6 +371,390 @@ func TestWebHookHanlderEndpointCommand(t *testing.T) {
 	})
 }
 
+func TestWebHookHanlderneighCommand(t *testing.T) {
+	wmc := webex.WebexMockClient
+	wmc.SetDefaultFunctions()
+	amc := apic.ApicMockClient
+	amc.SetDefaultFunctions()
+	wmc.GetMessageByIdF = func(id string) (webex.WebexMessage, error) {
+		return webex.WebexMessage{Text: "/neigh"}, nil
+	}
+	b, _ := NewBot(&wmc, &amc, "http://test_bot.com")
+	reqB := webex.WebexWebhook{
+		Name: "test-bot",
+		Data: &webex.WebexWebhookData{
+			RoomId: "AbC13",
+		},
+	}
+
+	t.Run("Fabric Neighbors", func(t *testing.T) {
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 !\n\n\n" +
+			"This is the Topology information of the Fabric : \n\n" +
+			"<ul><li><strong>SW1</strong>:\t101:[eth1/1]   102:[eth1/2]   </li>" +
+			"<li><strong>SW2</strong>:\t101:[eth1/3]   103:[eth1/4]   </li>" +
+			"<li><strong>SW3</strong>:\t102:[eth1/5]   103:[eth1/6]   </li></ul>"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+	t.Run("Node neighbors", func(t *testing.T) {
+		wmc.GetMessageByIdF = func(id string) (webex.WebexMessage, error) {
+			return webex.WebexMessage{Text: "/neigh 103"}, nil
+		}
+		amc.GetFabricNeighborsF = func(nd string) (map[string][]string, error) {
+			return map[string][]string{"SW2": {"103:[eth1/4]"}, "SW3": {"103:[eth1/6]"}}, nil
+		}
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 !\n\n\n" +
+			"These are the Neighbors of the Node <code>103</code>: \n\n" +
+			"<ul><li><strong>SW2</strong>:\t103:[eth1/4]   </li>" +
+			"<li><strong>SW3</strong>:\t103:[eth1/6]   </li></ul>"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+	t.Run("Fabric neighbors - No Neighbors", func(t *testing.T) {
+		wmc.GetMessageByIdF = func(id string) (webex.WebexMessage, error) {
+			return webex.WebexMessage{Text: "/neigh"}, nil
+		}
+		amc.GetFabricNeighborsF = func(nd string) (map[string][]string, error) {
+			return map[string][]string{}, nil
+		}
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 !\n Sorry.. I could not discover the Topology of the Fabric"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+	t.Run("Node neighbors - Invalid Node", func(t *testing.T) {
+		wmc.GetMessageByIdF = func(id string) (webex.WebexMessage, error) {
+			return webex.WebexMessage{Text: "/neigh 999"}, nil
+		}
+		amc.GetFabricNeighborsF = func(nd string) (map[string][]string, error) {
+			return map[string][]string{}, nil
+		}
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 !\n It seems there are no Neighbors for Node <code>999</code>"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+	t.Run("APIC Unavailable", func(t *testing.T) {
+		wmc.GetMessageByIdF = func(id string) (webex.WebexMessage, error) {
+			return webex.WebexMessage{Text: "/neigh"}, nil
+		}
+		amc.GetFabricNeighborsF = func(nd string) (map[string][]string, error) {
+			return map[string][]string{}, errors.New("Generic APIC Error")
+		}
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 !. I could not reach the APIC... Are there any issues?"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+}
+
+func TestWebHookHanlderFaultCommand(t *testing.T) {
+	wmc := webex.WebexMockClient
+	wmc.SetDefaultFunctions()
+	amc := apic.ApicMockClient
+	amc.SetDefaultFunctions()
+	wmc.GetMessageByIdF = func(id string) (webex.WebexMessage, error) {
+		return webex.WebexMessage{Text: "/faults"}, nil
+	}
+	b, _ := NewBot(&wmc, &amc, "http://test_bot.com")
+	reqB := webex.WebexWebhook{
+		Name: "test-bot",
+		Data: &webex.WebexWebhookData{
+			RoomId: "AbC13",
+		},
+	}
+
+	t.Run("Errorless /fault command", func(t *testing.T) {
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 !\n\n\n" +
+			"These are the latest 10 faults in the the Fabric : \n\n" +
+			"<ul><li><strong>F1451</strong> - <em>topology/pod-1/node-202/sys/ch/psuslot-1/psu/fault-F1451</em>" +
+			"<ul><li>Power supply shutdown. (serial number ABCDEF)</li>" +
+			"<li><strong>Severity</strong>: minor ⚠️</li>" +
+			"<li><strong>Current Lyfecycle</strong>: raised ❌</li>" +
+			"<li><strong>Type</strong>: environmental</li>" +
+			"<li><strong>Created</strong>: 2021-09-07T13:20:13.645+01:00</li></ul></ul>"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+	t.Run("Error APIC unreachable", func(t *testing.T) {
+		amc.GetLatestFaultsF = func(c string) ([]apic.ApicMoAttributes, error) {
+			return []apic.ApicMoAttributes{}, errors.New("Generic APIC Error")
+		}
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 !. I could not reach the APIC... Are there any issues?"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+}
+
+func TestWebHookHanlderEventCommand(t *testing.T) {
+	wmc := webex.WebexMockClient
+	wmc.SetDefaultFunctions()
+	amc := apic.ApicMockClient
+	amc.SetDefaultFunctions()
+	wmc.GetMessageByIdF = func(id string) (webex.WebexMessage, error) {
+		return webex.WebexMessage{Text: "/events"}, nil
+	}
+	b, _ := NewBot(&wmc, &amc, "http://test_bot.com")
+	reqB := webex.WebexWebhook{
+		Name: "test-bot",
+		Data: &webex.WebexWebhookData{
+			RoomId: "AbC13",
+		},
+	}
+
+	t.Run("All Users Events", func(t *testing.T) {
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 !\n\n\n" +
+			"These are the latest 10 events in the the Fabric : \n\n" +
+			"<ul><li><strong>E4218210</strong> - <em>uni/uipageusage/pagecount-AllTenants</em>" +
+			"<ul><li>PageCount AllTenants modified</li>" +
+			"<li><strong>User</strong>: user1</li>" +
+			"<li><strong>Type</strong>: modification 🔄</li>" +
+			"<li><strong>Created</strong>: 2021-09-07T13:20:13.645+01:00</li></ul></ul>"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+	t.Run("No Events Returned", func(t *testing.T) {
+		amc.GetLatestEventsF = func(c string, usr ...string) ([]apic.ApicMoAttributes, error) {
+			return []apic.ApicMoAttributes{}, nil
+		}
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 !. There are no events"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+	t.Run("Specific User Events", func(t *testing.T) {
+		wmc.GetMessageByIdF = func(id string) (webex.WebexMessage, error) {
+			return webex.WebexMessage{Text: "/events usera"}, nil
+		}
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 !. There are no events"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+	t.Run("Error APIC unreachable", func(t *testing.T) {
+		amc.GetLatestEventsF = func(c string, usr ...string) ([]apic.ApicMoAttributes, error) {
+			return []apic.ApicMoAttributes{}, errors.New("Generic APIC Error")
+		}
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 !. I could not reach the APIC... Are there any issues?"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+}
+
+// TODO Mock WebSocket
+func TestWebHookHanlderWebsocketCommand(t *testing.T) {
+	wmc := webex.WebexMockClient
+	wmc.SetDefaultFunctions()
+	amc := apic.ApicMockClient
+	amc.SetDefaultFunctions()
+	b, _ := NewBot(&wmc, &amc, "http://test_bot.com")
+	reqB := webex.WebexWebhook{
+		Name: "test-bot",
+		Data: &webex.WebexWebhookData{
+			RoomId: "AbC13",
+		},
+	}
+
+	t.Run("/websocket - List Subscription - No Subscription", func(t *testing.T) {
+		wmc.GetMessageByIdF = func(id string) (webex.WebexMessage, error) {
+			return webex.WebexMessage{Text: "/websocket list"}, nil
+		}
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 !\n You are no subscribed to any class"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+
+	t.Run("/websocket - Subscribe to Class", func(t *testing.T) {
+		wmc.GetMessageByIdF = func(id string) (webex.WebexMessage, error) {
+			return webex.WebexMessage{Text: "/websocket fvTenant"}, nil
+		}
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 !\n\n Websocket subscription to MO/Class <code>fvTenant</code> configured 🔧 !"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+
+	t.Run("/websocket - Subscribe to Class Again", func(t *testing.T) {
+		wmc.GetMessageByIdF = func(id string) (webex.WebexMessage, error) {
+			return webex.WebexMessage{Text: "/websocket fvTenant"}, nil
+		}
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 !\n\n You are already subscribed to MO/Class <code>fvTenant</code>"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+
+	t.Run("/websocket - List Subscription", func(t *testing.T) {
+		wmc.GetMessageByIdF = func(id string) (webex.WebexMessage, error) {
+			return webex.WebexMessage{Text: "/websocket list"}, nil
+		}
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 !\n Here the list of subcribed classes:\n <ul><li><code>fvTenant</code></li></ul>"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+
+	t.Run("/websocket - Remove Suscription", func(t *testing.T) {
+		wmc.GetMessageByIdF = func(id string) (webex.WebexMessage, error) {
+			return webex.WebexMessage{Text: "/websocket fvTenant rm"}, nil
+		}
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 !\n\n Websocket subscription to MO/Class <code>fvTenant</code> deleted 🔧 !"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+
+	t.Run("/websocket - Remove Invalid Suscription", func(t *testing.T) {
+		wmc.GetMessageByIdF = func(id string) (webex.WebexMessage, error) {
+			return webex.WebexMessage{Text: "/websocket fvTenant rm"}, nil
+		}
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 !\n\n You are not subscribed to MO/Class <code>fvTenant</code>"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+}
+
+func TestWebHookHanlderHelpCommand(t *testing.T) {
+	wmc := webex.WebexMockClient
+	wmc.SetDefaultFunctions()
+	amc := apic.ApicMockClient
+	amc.SetDefaultFunctions()
+	wmc.GetMessageByIdF = func(id string) (webex.WebexMessage, error) {
+		return webex.WebexMessage{Text: "/help"}, nil
+	}
+	b, _ := NewBot(&wmc, &amc, "http://test_bot.com")
+	reqB := webex.WebexWebhook{
+		Name: "test-bot",
+		Data: &webex.WebexWebhookData{
+			RoomId: "AbC13",
+		},
+	}
+
+	t.Run("Errorless /help command", func(t *testing.T) {
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hello , How can I help you?\n\n" +
+			"<ul><li><code>/cpu</code>\t->\tGet APIC CPU Information 💾</li>" +
+			"<li><code>/ep</code>\t->\tGet APIC Endpoint Information 💻. Usage <code>/ep [ep_mac] </code></li>" +
+			"<li><code>/events</code>\t->\tGet Fabric latest events ❎.   Usage <code>/events [user:opt] [count(1-10):opt] </code></li>" +
+			"<li><code>/faults</code>\t->\tGet Fabric latest faults ⚠️. Usage <code>/faults [count(1-10):opt] </code></li>" +
+			"<li><code>/help</code>\t->\tChatbot Help ❔</li><li><code>/info</code>\t->\tGet Fabric Information ℹ️</li>" +
+			"<li><code>/neigh</code>\t->\tGet Fabric Topology Information 🔢. Usage <code>/neigh [node_id] </code></li>" +
+			"<li><code>/websocket</code>\t->\tSubscribe to Fabric events 📩</li><ul>"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+}
+
+func TestWebHookHanlderInvalidCommand(t *testing.T) {
+	wmc := webex.WebexMockClient
+	wmc.SetDefaultFunctions()
+	amc := apic.ApicMockClient
+	amc.SetDefaultFunctions()
+	wmc.GetMessageByIdF = func(id string) (webex.WebexMessage, error) {
+		return webex.WebexMessage{Text: "a wrong text"}, nil
+	}
+	b, _ := NewBot(&wmc, &amc, "http://test_bot.com")
+	reqB := webex.WebexWebhook{
+		Name: "test-bot",
+		Data: &webex.WebexWebhookData{
+			RoomId: "AbC13",
+		},
+	}
+
+	t.Run("Completely wrong command", func(t *testing.T) {
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hello , How can I help you?\n\n" +
+			"<ul><li><code>/cpu</code>\t->\tGet APIC CPU Information 💾</li>" +
+			"<li><code>/ep</code>\t->\tGet APIC Endpoint Information 💻. Usage <code>/ep [ep_mac] </code></li>" +
+			"<li><code>/events</code>\t->\tGet Fabric latest events ❎.   Usage <code>/events [user:opt] [count(1-10):opt] </code></li>" +
+			"<li><code>/faults</code>\t->\tGet Fabric latest faults ⚠️. Usage <code>/faults [count(1-10):opt] </code></li>" +
+			"<li><code>/help</code>\t->\tChatbot Help ❔</li><li><code>/info</code>\t->\tGet Fabric Information ℹ️</li>" +
+			"<li><code>/neigh</code>\t->\tGet Fabric Topology Information 🔢. Usage <code>/neigh [node_id] </code></li>" +
+			"<li><code>/websocket</code>\t->\tSubscribe to Fabric events 📩</li><ul>"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+
+	t.Run("Incorrect Syntax", func(t *testing.T) {
+		wmc.GetMessageByIdF = func(id string) (webex.WebexMessage, error) {
+			return webex.WebexMessage{Text: "/neigh abc"}, nil
+		}
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 \n I could not fully understand the input\n" +
+			" Please check the usage of the <code>/neigh</code> command:\n " +
+			"<ul><li>Get Fabric Topology Information 🔢. Usage <code>/neigh [node_id] </code></ul></li>\n"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+}
 func TestUtils(t *testing.T) {
 	t.Run("cleanCommand - No additional spaces", func(t *testing.T) {
 

@@ -47,6 +47,33 @@ func (ac *ApicClientMocks) SetDefaultFunctions() {
 			Epg:      "myEPG",
 		}}, nil
 	}
+
+	ac.GetFabricNeighborsF = func(nd string) (map[string][]string, error) {
+		return map[string][]string{"SW1": {"101:[eth1/1]", "102:[eth1/2]"}, "SW2": {"101:[eth1/3]", "103:[eth1/4]"}, "SW3": {"102:[eth1/5]", "103:[eth1/6]"}}, nil
+	}
+
+	ac.GetLatestFaultsF = func(c string) ([]ApicMoAttributes, error) {
+		return []ApicMoAttributes{
+			{"code": "F1451",
+				"dn":       "topology/pod-1/node-202/sys/ch/psuslot-1/psu/fault-F1451",
+				"descr":    "Power supply shutdown. (serial number ABCDEF)",
+				"severity": "minor",
+				"lc":       "raised",
+				"type":     "environmental",
+				"created":  "2021-09-07T13:20:13.645+01:00",
+			}}, nil
+	}
+
+	ac.GetLatestEventsF = func(c string, usr ...string) ([]ApicMoAttributes, error) {
+		return []ApicMoAttributes{
+			{"code": "E4218210",
+				"affected": "uni/uipageusage/pagecount-AllTenants",
+				"descr":    "PageCount AllTenants modified",
+				"user":     "user1",
+				"ind":      "modification",
+				"created":  "2021-09-07T13:20:13.645+01:00",
+			}}, nil
+	}
 }
 
 func (ac *ApicClientMocks) GetProcEntity() ([]ApicMoAttributes, error) {

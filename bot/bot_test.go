@@ -108,19 +108,18 @@ func TestTestHandler(t *testing.T) {
 		equals(t, response.Code, http.StatusOK)
 		equals(t, response.Body.String(), "I am alive!")
 	})
-
 }
 
 // Test /about Handler
 func TestAboutMeHandler(t *testing.T) {
+	wmc := webex.WebexMockClient
+	wmc.SetDefaultFunctions()
+	b, _ := NewBot(&wmc, nil, "http://test_bot.com")
 	// HTTP request to the /test URI without errors
 	t.Run("Errorless Request", func(t *testing.T) {
-		wmc := webex.WebexMockClient
-		wmc.SetDefaultFunctions()
-		b, _ := NewBot(&wmc, nil, "http://test_bot.com")
+
 		request, _ := http.NewRequest(http.MethodGet, "/about", nil)
 		response := httptest.NewRecorder()
-
 		b.router.ServeHTTP(response, request)
 
 		exp, _ := wmc.GetBotDetailsF()
@@ -129,26 +128,19 @@ func TestAboutMeHandler(t *testing.T) {
 		equals(t, response.Code, http.StatusOK)
 		equals(t, response.Body.String(), string(expByte))
 		equals(t, response.Header(), http.Header{"Content-Type": []string{"application/json"}})
-
 	})
 
 	t.Run("Error Unavailable Webex Service", func(t *testing.T) {
-		wmc := webex.WebexMockClient
-		wmc.SetDefaultFunctions()
-		b, _ := NewBot(&wmc, nil, "http://test_bot.com")
 		// Make it fail after creating the Bot
 		wmc.GetBotDetailsF = func() (webex.WebexPeople, error) {
 			return webex.WebexPeople{}, errors.New("Webex Timeout")
 		}
 		request, _ := http.NewRequest(http.MethodGet, "/about", nil)
 		response := httptest.NewRecorder()
-
 		b.router.ServeHTTP(response, request)
 
 		equals(t, response.Code, http.StatusInternalServerError)
-
 	})
-
 }
 
 // Test Webhook Handler
@@ -276,6 +268,102 @@ func TestWebHookHanlderCpuCommand(t *testing.T) {
 		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
 		response := httptest.NewRecorder()
 
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 !. I could not reach the APIC... Are there any issues?"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+}
+
+func TestWebHookHanlderInfoCommand(t *testing.T) {
+	wmc := webex.WebexMockClient
+	wmc.SetDefaultFunctions()
+	amc := apic.ApicMockClient
+	amc.SetDefaultFunctions()
+	wmc.GetMessageByIdF = func(id string) (webex.WebexMessage, error) {
+		return webex.WebexMessage{Text: "/info"}, nil
+	}
+	b, _ := NewBot(&wmc, &amc, "http://test_bot.com")
+	reqB := webex.WebexWebhook{
+		Name: "test-bot",
+		Data: &webex.WebexWebhookData{
+			RoomId: "AbC13",
+		},
+	}
+
+	t.Run("Errorless /info command", func(t *testing.T) {
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 !\n\n\n" +
+			"This is the general information of the Fabric <code>Test Fabric</code> (https://test-apic.com): \n\n" +
+			"<ul><li>Current Health Score: <strong>95</strong></li>" +
+			"<li><strong>APIC Controllers</strong><ul>" +
+			"<li>APIC1 (<strong>5.2(3e)</strong>)</li></ul>" +
+			"<li><strong>Pods</strong><ul>" +
+			"<li>Pod1 <em>physical</em></li>" +
+			"<li>Pod2 <em>physical</em></li></ul>" +
+			"<li></strong>Switches</strong><ul>" +
+			"<li># of Spines : <strong>1</strong></li>" +
+			"<li># of Leafs : <strong>2</strong></li></ul></ul></li>"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+	t.Run("Error APIC unreachable", func(t *testing.T) {
+		amc.GetFabricInformationF = func() (apic.FabricInformation, error) {
+			return apic.FabricInformation{}, errors.New("Generic APIC Error")
+		}
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 !. I could not reach the APIC... Are there any issues?"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+}
+
+func TestWebHookHanlderEndpointCommand(t *testing.T) {
+	wmc := webex.WebexMockClient
+	wmc.SetDefaultFunctions()
+	amc := apic.ApicMockClient
+	amc.SetDefaultFunctions()
+	wmc.GetMessageByIdF = func(id string) (webex.WebexMessage, error) {
+		return webex.WebexMessage{Text: "/ep AA:AA:BB:BB:CC:CC"}, nil
+	}
+	b, _ := NewBot(&wmc, &amc, "http://test_bot.com")
+	reqB := webex.WebexWebhook{
+		Name: "test-bot",
+		Data: &webex.WebexWebhookData{
+			RoomId: "AbC13",
+		},
+	}
+
+	t.Run("Errorless /ep command", func(t *testing.T) {
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
+		b.router.ServeHTTP(response, request)
+		equals(t, response.Code, http.StatusOK)
+		expectedMessage := "Hi  🤖 !\n\n\n" +
+			"This is the information for the Endpoint <code>AA:AA:BB:BB:CC:CC</code>" +
+			"<ul><li><strong>Tenant</strong>: myTenant</li>" +
+			"<li><strong>Application Profile</strong>: myApp</li>" +
+			"<li><strong>EPG</strong>: myEPG</li>" +
+			"<li><strong>Location 1</strong>: </li><ul>" +
+			"<li><strong>Pod</strong>: 1  <strong>Node</strong>: 1201-1202  <strong>Type</strong>: vPC  <strong>Port</strong>: [FI_VPC_IPG]</li></ul" +
+			"><li><strong>IPs</strong>: </li><ul>" +
+			"<li><strong>IP</strong>: 192.168.1.1</li></ul></ul>"
+		equals(t, wmc.LastMsgSent, expectedMessage)
+	})
+	t.Run("Error APIC unreachable", func(t *testing.T) {
+		amc.GetEndpointInformationF = func(m string) ([]apic.EndpointInformation, error) {
+			return []apic.EndpointInformation{}, errors.New("Generic APIC Error")
+		}
+		jp, _ := json.Marshal(reqB)
+		request, _ := http.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(jp))
+		response := httptest.NewRecorder()
 		b.router.ServeHTTP(response, request)
 		equals(t, response.Code, http.StatusOK)
 		expectedMessage := "Hi  🤖 !. I could not reach the APIC... Are there any issues?"

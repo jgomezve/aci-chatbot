@@ -19,7 +19,6 @@ type WebexClientMocks struct {
 	GetRoomByIdF          func(roomId string) (WebexRoom, error)
 }
 
-// TODO: check if this approach is valid
 var (
 	WebexMockClient WebexClientMocks
 )

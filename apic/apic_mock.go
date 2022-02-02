@@ -5,7 +5,6 @@ package apic
 
 type ApicClientMocks struct {
 	GetProcEntityF          func() ([]ApicMoAttributes, error)
-	GetEnpointF             func(mac string) []ApicMoAttributes
 	GetFabricInformationF   func() (FabricInformation, error)
 	GetEndpointInformationF func(m string) ([]EndpointInformation, error)
 	GetFabricNeighborsF     func(nd string) (map[string][]string, error)
@@ -13,7 +12,6 @@ type ApicClientMocks struct {
 	GetLatestEventsF        func(c string, usr ...string) ([]ApicMoAttributes, error)
 }
 
-// TODO: check if this approach is valid
 var (
 	ApicMockClient ApicClientMocks
 )
@@ -27,17 +25,53 @@ func (ac *ApicClientMocks) SetDefaultFunctions() {
 		return procs, nil
 	}
 
-	ac.GetEnpointF = func(mac string) []ApicMoAttributes {
-		eps := []ApicMoAttributes{}
-		return eps
-	}
-
 	ac.GetFabricInformationF = func() (FabricInformation, error) {
-		return FabricInformation{Name: "Test Fabric", Health: "95"}, nil
+		return FabricInformation{
+			Name:   "Test Fabric",
+			Url:    "https://test-apic.com",
+			Pods:   []map[string]string{{"id": "1", "type": "physical"}, {"id": "2", "type": "physical"}},
+			Apics:  []map[string]string{{"name": "APIC1", "version": "5.2(3e)"}},
+			Spines: []map[string]string{{"name": "SPINE1", "version": "15.2(3e)"}},
+			Leafs:  []map[string]string{{"name": "LEAF1", "version": "15.2(3e)"}, {"name": "LEAF2", "version": "15.2(3e)"}},
+			Health: "95"}, nil
 	}
 
 	ac.GetEndpointInformationF = func(m string) ([]EndpointInformation, error) {
-		return []EndpointInformation{}, nil
+		return []EndpointInformation{{
+			Mac:      "AA:AA:AA:BB:BB:CC",
+			Ips:      []string{"192.168.1.1"},
+			Tenant:   "myTenant",
+			Location: []map[string]string{{"pod": "1", "type": "vPC", "nodes": "1201-1202", "port": "[FI_VPC_IPG]"}},
+			App:      "myApp",
+			Epg:      "myEPG",
+		}}, nil
+	}
+
+	ac.GetFabricNeighborsF = func(nd string) (map[string][]string, error) {
+		return map[string][]string{"SW1": {"101:[eth1/1]", "102:[eth1/2]"}, "SW2": {"101:[eth1/3]", "103:[eth1/4]"}, "SW3": {"102:[eth1/5]", "103:[eth1/6]"}}, nil
+	}
+
+	ac.GetLatestFaultsF = func(c string) ([]ApicMoAttributes, error) {
+		return []ApicMoAttributes{
+			{"code": "F1451",
+				"dn":       "topology/pod-1/node-202/sys/ch/psuslot-1/psu/fault-F1451",
+				"descr":    "Power supply shutdown. (serial number ABCDEF)",
+				"severity": "minor",
+				"lc":       "raised",
+				"type":     "environmental",
+				"created":  "2021-09-07T13:20:13.645+01:00",
+			}}, nil
+	}
+
+	ac.GetLatestEventsF = func(c string, usr ...string) ([]ApicMoAttributes, error) {
+		return []ApicMoAttributes{
+			{"code": "E4218210",
+				"affected": "uni/uipageusage/pagecount-AllTenants",
+				"descr":    "PageCount AllTenants modified",
+				"user":     "user1",
+				"ind":      "modification",
+				"created":  "2021-09-07T13:20:13.645+01:00",
+			}}, nil
 	}
 }
 

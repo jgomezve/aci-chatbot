@@ -76,7 +76,7 @@ func NewBot(wbx webex.WebexInterface, apic apic.ApicInterface, botUrl string) (B
 	log.Println("Adding `/neigh` command")
 	bot.addCommand("/neigh", "Get Fabric Topology Information 🔢. Usage <code>/neigh [node_id] </code>", "\\/neigh", "( )?([0-9]{1,4})?$", neighCommand)
 	log.Println("Adding `/faults` command")
-	bot.addCommand("/faults", "Get Fabric latest faults ⚠️. Usage <code>/faults [count(1-10):opt] </code>", "\\/faults", "( )?([1-9]|10)( )?$", faultCommand)
+	bot.addCommand("/faults", "Get Fabric latest faults ⚠️. Usage <code>/faults [count(1-10):opt] </code>", "\\/faults", "( )?([1-9]|10)?$", faultCommand)
 	log.Println("Adding `/events` command")
 	bot.addCommand("/events", "Get Fabric latest events ❎.   Usage <code>/events [user:opt] [count(1-10):opt] </code>", "\\/events", "( )?([A-Za-z]{5,10})?( )?([1-9]|10)?$", eventCommand)
 	bot.addCommand("/websocket", "Subscribe to Fabric events 📩", "\\/websocket", " [A-Za-z]{1,20}( )?(rm)?$", websocketCommand(bot.wsSubs))
@@ -159,7 +159,7 @@ func eventCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 	}
 
 	if len(info) == 0 {
-		return fmt.Sprintf("Hi %s 🤖 !. There are no events for username <code>%s</code>", wm.sender, events["user"])
+		return fmt.Sprintf("Hi %s 🤖 !. There are no events", wm.sender)
 	}
 
 	res += fmt.Sprintf("\nThese are the latest %s events in the the Fabric : \n\n", events["count"])
@@ -192,7 +192,7 @@ func faultCommand(c apic.ApicInterface, m Message, wm WebexMessage) string {
 		return fmt.Sprintf("Hi %s 🤖 !. I could not reach the APIC... Are there any issues?", wm.sender)
 	}
 
-	res += fmt.Sprintf("\nThese are the latest %s faults in the the Fabric : \n\n", faults)
+	res += fmt.Sprintf("\nThese are the latest %s faults in the the Fabric : \n\n", faults["count"])
 
 	res += "<ul>"
 	for _, f := range info {

@@ -9,14 +9,14 @@ Monitor your Data Center using an user-friendly bot. This repository contains a 
 This is the list of supported commands.
 
 ```
-	•	/cpu	->	Get APIC CPU Information 💾
-	•	/ep	->	Get APIC Endpoint Information 💻. Usage /ep [ep_mac] 
-	•	/events	->	Get Fabric latest events ❎.   Usage /events [user:opt] [count(1-10):opt] 
-	•	/faults	->	Get Fabric latest faults ⚠️. Usage /faults [count(1-10):opt] 
-	•	/help	->	Chatbot Help ❔
-	•	/info	->	Get Fabric Information ℹ️
-	•	/neigh	->	Get Fabric Topology Information 🔢. Usage /neigh [node_id] 
-	•	/websocket	->	Subscribe to Fabric events 📩
+•	/cpu	->	Get APIC CPU Information 💾
+•	/ep	->	Get APIC Endpoint Information 💻. Usage /ep [ep_mac] 
+•	/events	->	Get Fabric latest events ❎.   Usage /events [user:opt] [count(1-10):opt] 
+•	/faults	->	Get Fabric latest faults ⚠️. Usage /faults [count(1-10):opt] 
+•	/help	->	Chatbot Help ❔
+•	/info	->	Get Fabric Information ℹ️
+•	/neigh	->	Get Fabric Topology Information 🔢. Usage /neigh [node_id] 
+•	/websocket	->	Subscribe to Fabric events 📩
 ```
 
 Even though most of the commands 

@@ -76,6 +76,6 @@ APIC_PASSWORD=admin
 
 Either send a message directly to your bot or add it to a Webex Group
 
-![add-app](./docs/images/start_bot.png)
+![add-app](./docs/images/webex_message.png)
 
 > **_NOTE:_** Some commands do not work if the target APIC is a simulator

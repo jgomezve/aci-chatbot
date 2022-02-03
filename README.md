@@ -1,12 +1,35 @@
 # aci-chatbot
 
-A [Go](https://go.dev/)-based Bot which reads information from the APIC and displays it in a 1:1 Webex Room
+A lightweight bot application to interact with the APIC from a Webex Chat romm
 
-## Requirements
+## Use Case description
 
-* Golang 1.15+
+Monitor your Data Center using an user-friendly bot. This repository contains a [Go](https://go.dev/)-based application that spins up a web server, which listens to [Webex](https://www.webex.com/) webhooks events an interacts with the [APIC](https://www.cisco.com/c/en/us/products/cloud-systems-management/application-policy-infrastructure-controller-apic/index.html) REST API to retrieve information about the operational status of your Fabric.
 
-## How to use it?
+This is the list of supported commands.
+
+```
+	•	/cpu	->	Get APIC CPU Information 💾
+	•	/ep	->	Get APIC Endpoint Information 💻. Usage /ep [ep_mac] 
+	•	/events	->	Get Fabric latest events ❎.   Usage /events [user:opt] [count(1-10):opt] 
+	•	/faults	->	Get Fabric latest faults ⚠️. Usage /faults [count(1-10):opt] 
+	•	/help	->	Chatbot Help ❔
+	•	/info	->	Get Fabric Information ℹ️
+	•	/neigh	->	Get Fabric Topology Information 🔢. Usage /neigh [node_id] 
+	•	/websocket	->	Subscribe to Fabric events 📩
+```
+
+Even though most of the commands 
+
+## Prerequisites
+
+Make sure to have Golang 1.15+ or Docker installed on your computer/server
+
+## Installation
+
+### Option 1: Build the code from source
+
+### Option 2: Execute the service as a Container
 
 * Set the environmental variables in `.env`:
 
@@ -22,11 +45,6 @@ APIC_PASSWORD=admin
 
             docker run --env-file .env -it -p 8080:7001 jgomezve/aci-chatbot:latest
 
+## Usage
 
-## Supported Webex Commands
-
-```
-/cpu->Get APIC CPU Information
-/ep->Get APIC Endpoint Information. Usage /ep <ep_mac>
-/help->Chatbot Help
-```
+Find the bot you create in the Webex Application and start asking hi about your ACI Fabric :) 

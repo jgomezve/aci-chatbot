@@ -1,6 +1,6 @@
 # Monitor an ACI Fabric from your favorite Webex Room - ChatOps
 
-A lightweight bot application to interact with the APIC from a Webex Chat romm
+A lightweight bot application to interact with the APIC from a Webex Chat room
 
 ## Use Case description
 
@@ -27,7 +27,7 @@ Even though most of the commands
 
 * Login to your Webex account and create your own bot. [Create Bot](https://developer.webex.com/docs/bots)
 
-    1. Give yout bot details
+    1. Give your bot details
 
         ![add-app](./docs/images/bot_details.png)
     
@@ -74,6 +74,8 @@ APIC_PASSWORD=admin
 
 ## Usage
 
-Find the bot you create in the Webex Application and start asking hi about your ACI Fabric :) 
+Either send a message directly to your bot or add it to a Webex Group
+
+    ![add-app](./docs/images/start_bot.png)
 
 > **_NOTE:_** Some commands do not work if the target APIC is a simulator

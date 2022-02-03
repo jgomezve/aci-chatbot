@@ -75,6 +75,8 @@ APIC_PASSWORD=admin
 
             docker run --env-file .env -it -p 8080:7001 jgomezve/aci-chatbot:latest
 
+> **_NOTE:_** Be careful with the port forwarding when using ngrok. The web server listens to the port 7001
+
 ## Usage
 
 Either send a message directly to your bot or add it to a Webex Group

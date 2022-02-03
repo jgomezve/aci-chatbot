@@ -23,7 +23,10 @@ Even though most of the commands
 
 ## Prerequisites
 
-* Make sure to have Golang 1.15+ or Docker installed on your computer/server
+* Make sure to have Go 1.15+ or Docker installed on your computer/server
+
+    * [Install Go](https://go.dev/doc/install)
+    * [Install Docker](https://docs.docker.com/get-docker/)
 
 * Login to your Webex account and create your own bot. [Create Bot](https://developer.webex.com/docs/bots)
 
@@ -37,7 +40,7 @@ Even though most of the commands
 
 ## Installation
 
-## ngrok
+### Execute ngrok (Optional)
 
 ### Option 1: Build the code from source
 

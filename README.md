@@ -1,4 +1,4 @@
-# aci-chatbot
+# Monitor an ACI Fabric from your favorite Webex Room - ChatOps
 
 A lightweight bot application to interact with the APIC from a Webex Chat romm
 
@@ -23,11 +23,38 @@ Even though most of the commands
 
 ## Prerequisites
 
-Make sure to have Golang 1.15+ or Docker installed on your computer/server
+* Make sure to have Golang 1.15+ or Docker installed on your computer/server
+
+* Login to your Webex account and create your own bot. [Create Bot](https://developer.webex.com/docs/bots)
+
+    1. Give yout bot details
+
+        ![add-app](./docs/images/bot_details.png)
+    
+    2. Copy the generated bot token, it will be required later
+
+        ![add-app](./docs/images/bot_token.png)
 
 ## Installation
 
+## ngrok
+
 ### Option 1: Build the code from source
+
+* Set and source the environmental variables in `env.sh`
+
+```
+export WEBEX_TOKEN=YOUR-WEBEX-TOKEN-GOES-HERE
+export BOT_URL=http://c314-173-38-220-48.eu.ngrok.io
+export APIC_URL=https://sandboxapicdc.cisco.com/
+export APIC_USERNAME=admin
+export APIC_PASSWORD=admin
+```
+        source env.sh
+
+* Execute the application
+
+        go run main.go
 
 ### Option 2: Execute the service as a Container
 
@@ -36,15 +63,17 @@ Make sure to have Golang 1.15+ or Docker installed on your computer/server
 ```
 WEBEX_TOKEN=herehoesyourbotwebextoken
 BOT_URL=http://2258-173-38-220-34.eu.ngrok.io
-APIC_URL=https://192.168.1.1
+APIC_URL=https://sandboxapicdc.cisco.com/
 APIC_USERNAME=admin
 APIC_PASSWORD=admin
 ```
 
-*  Run the service as a Docker container
+*  Run the application in a Docker container
 
             docker run --env-file .env -it -p 8080:7001 jgomezve/aci-chatbot:latest
 
 ## Usage
 
 Find the bot you create in the Webex Application and start asking hi about your ACI Fabric :) 
+
+> **_NOTE:_** Some commands do not work if the target APIC is a simulator

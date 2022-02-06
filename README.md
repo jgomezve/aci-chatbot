@@ -56,9 +56,9 @@ The bot application must be hosted in a server reachable via the public internet
 
 Follow these instruction after installing ngrok:
 
-* Start the ngrok service stating the port the bot server listens to. By default is listens to por **7001**, however if you are using the docker container you shoudl list the port used for port-forwarding.
+* Start the ngrok service stating the port the bot server listens to. By default the application listens to por **7001**, however if you are using the docker container you should state here Docker host port.
 
-        ./ngrok http <bot_pot> --region=eu
+        ./ngrok http <bot_port> --region=eu
 
 ```
 ngrok by @inconshreveable    
@@ -96,6 +96,8 @@ export APIC_PASSWORD=admin
 
         go run main.go
 
+> **_NOTE:_**:  The application listens to port `7001`
+
 ### Option 2: Execute the service as a Container
 
 * Set the environmental variables in `.env`:
@@ -110,9 +112,9 @@ APIC_PASSWORD=admin
 
 *  Run the application in a Docker container
 
-            docker run --env-file .env -it -p 8080:7001 jgomezve/aci-chatbot:latest
+            docker run --env-file .env -it -p <bot_port>:7001 jgomezve/aci-chatbot:latest
 
-> **_NOTE:_** Be careful with the port forwarding when using ngrok. The web server listens to the port 7001
+> **_NOTE:_** In case you are using ngrok, <bot_port> is the same port used to start ngrok.
 
 ## Usage
 

@@ -6,7 +6,9 @@ A lightweight bot application to interact with the APIC from a Webex Chat room
 
 Monitor your Data Center using an user-friendly bot. This repository contains a [Go](https://go.dev/)-based application that spins up a web server, which listens to [Webex](https://www.webex.com/) webhooks events an interacts with the [APIC](https://www.cisco.com/c/en/us/products/cloud-systems-management/application-policy-infrastructure-controller-apic/index.html) REST API to retrieve information about the operational status of your Fabric.
 
-![add-app](./docs/images/aci-chatbot.png)
+<p align="center">
+<img src="images/aci-chatbot.png" border="0" alt="aci-chatbot">
+<br/>
 
 This is the list of supported commands.
 

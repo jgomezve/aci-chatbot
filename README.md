@@ -46,6 +46,11 @@ Even though most of the commands
 
 ### Execute ngrok (Optional)
 
+<p align="center">
+<img src="./docs/images/aci-chatbot.png" border="0" alt="aci-chatbot_ngrok">
+<br/>
+
+
 ### Option 1: Build the code from source
 
 * Set and source the environmental variables in `env.sh`

@@ -38,7 +38,7 @@ Even though most of the commands
 
         ![add-app](./docs/images/bot_details.png)
     
-    2. Copy the generated bot token, it will be required later
+    2. The generate token is your `WEBEX_TOKEN`
 
         ![add-app](./docs/images/bot_token.png)
 

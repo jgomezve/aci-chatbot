@@ -525,7 +525,12 @@ func refreshApicClient(b *Bot, t int) {
 
 func (b *Bot) SetupWebSocket() error {
 
-	b.wsck, _ = apic.NewApicWebSClient(b.apic.GetIp(), b.apic.GetToken())
+	wsck, err := apic.NewApicWebSClient(b.apic.GetIp(), b.apic.GetToken())
+	if err != nil {
+		b.wsck = nil
+		return err
+	}
+	b.wsck = wsck
 	go refreshApicClient(b, 180)
 	go readWebsocket(b)
 	return nil

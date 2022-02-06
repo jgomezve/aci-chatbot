@@ -3,18 +3,17 @@
 [![Tests](https://github.com/jgomezve/aci-chatbot/actions/workflows/test.yml/badge.svg)](https://github.com/jgomezve/aci-chatbot/actions/workflows/test.yml)
 
 
-A lightweight bot application to interact with the APIC from a Webex Chat room
+A lightweight bot application to interact with the APIC from a Webex chat room
 
 ## Use Case description
 
-Monitor your Data Center using an user-friendly bot. This repository contains a [Go](https://go.dev/)-based application that spins up a web server, which listens to [Webex](https://www.webex.com/) webhooks events an interacts with the [APIC](https://www.cisco.com/c/en/us/products/cloud-systems-management/application-policy-infrastructure-controller-apic/index.html) REST API to retrieve information about the operational status of your Fabric.
+Monitor your Data Center using an user-friendly bot. This repository contains a [Go](https://go.dev/)-based application that spins up a web server, which listens to [Webex](https://www.webex.com/) [webhooks](https://developer.webex.com/docs/api/guides/webhooks) notifications and interacts with the [APIC](https://www.cisco.com/c/en/us/products/cloud-systems-management/application-policy-infrastructure-controller-apic/index.html) REST API to retrieve information about the operational status of your Fabric.
 
 <p align="center">
 <img src="./docs/images/aci-chatbot.png" border="0" alt="aci-chatbot">
 <br/>
 
-This is the list of supported commands.
-
+This application allows you query information about the operatioanl status of you ACI Fabric, and the endpoints attached to the Fabric by simply typing short and human-readable command in a Webex room. These is the list of the currently supported commands by the aci-chatbot:
 ```
 •	/cpu	->	Get APIC CPU Information 💾
 •	/ep	->	Get APIC Endpoint Information 💻. Usage /ep [ep_mac] 
@@ -26,7 +25,14 @@ This is the list of supported commands.
 •	/websocket	->	Subscribe to Fabric events 📩
 ```
 
-Even though most of the commands 
+The `/websocket` command allows Webex rooms/spaces to subscribe to events for specific APIC MO/Class. After the Webex room is subscribed, the bot will send immediate notifications once any instance of the defined MO/Class is created, modified or deleted. In the background this command leverages the [APIC WebSocket](https://www.cisco.com/c/en/us/td/docs/switches/datacenter/aci/apic/sw/2-x/rest_cfg/2_1_x/b_Cisco_APIC_REST_API_Configuration_Guide/b_Cisco_APIC_REST_API_Configuration_Guide_chapter_01.html#concept_71EBE2E241C3442BA326273AF1A9B617) functionality.
+
+
+
+The other commands
+[APIC REST API](https://www.cisco.com/c/en/us/td/docs/switches/datacenter/aci/apic/sw/2-x/rest_cfg/2_1_x/b_Cisco_APIC_REST_API_Configuration_Guide/b_Cisco_APIC_REST_API_Configuration_Guide_chapter_01.html#d54e540a1635)
+
+
 
 ## Prerequisites
 

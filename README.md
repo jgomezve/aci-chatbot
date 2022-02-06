@@ -26,7 +26,7 @@ This application allows you retrieve operational, topology, event/fault, endpoin
 •	/websocket	->	Subscribe to Fabric events 📩
 ```
 
-The bot takes advantage from the [APIC REST API](https://www.cisco.com/c/en/us/td/docs/switches/datacenter/aci/apic/sw/2-x/rest_cfg/2_1_x/b_Cisco_APIC_REST_API_Configuration_Guide/b_Cisco_APIC_REST_API_Configuration_Guide_chapter_01.html#d54e540a1635) to query and filter information from the APIC Management Information Tree (MIT). Furthermore, the `/websocket` command leverages the [APIC WebSocket](https://www.cisco.com/c/en/us/td/docs/switches/datacenter/aci/apic/sw/2-x/rest_cfg/2_1_x/b_Cisco_APIC_REST_API_Configuration_Guide/b_Cisco_APIC_REST_API_Configuration_Guide_chapter_01.html#concept_71EBE2E241C3442BA326273AF1A9B617) functionality, to get instant notifications once any instance of a defined MO/Class is created, modified or deleted.
+The bot takes advantage of the [APIC REST API](https://www.cisco.com/c/en/us/td/docs/switches/datacenter/aci/apic/sw/2-x/rest_cfg/2_1_x/b_Cisco_APIC_REST_API_Configuration_Guide/b_Cisco_APIC_REST_API_Configuration_Guide_chapter_01.html#d54e540a1635) to query and filter information from the APIC Management Information Tree (MIT). Furthermore, the `/websocket` command leverages the [APIC WebSocket](https://www.cisco.com/c/en/us/td/docs/switches/datacenter/aci/apic/sw/2-x/rest_cfg/2_1_x/b_Cisco_APIC_REST_API_Configuration_Guide/b_Cisco_APIC_REST_API_Configuration_Guide_chapter_01.html#concept_71EBE2E241C3442BA326273AF1A9B617) functionality, to get instant notifications once any instance of a defined MO/Class is created, modified or deleted.
 
 
 ## Prerequisites
@@ -50,7 +50,7 @@ The bot takes advantage from the [APIC REST API](https://www.cisco.com/c/en/us/t
 
 ### Execute ngrok (Optional)
 
-The bot application must be hosted in a server reachable via the public internet, as the webhooks are delivered from webex.com. For development and testing pursposes you could use [ngrok](https://ngrok.com/) to expose your server to the public internet. Ngrok will expose your application (Server IP & Port) over a secure tunnel.
+The bot application must be hosted in a server reachable via the public internet, because the webhooks are delivered from webex.com. For development and testing pursposes you could use [ngrok](https://ngrok.com/) to expose your server to the public internet. Ngrok will expose your application (Server IP & Port) over a secure tunnel.
 
 <p align="center">
 <img src="./docs/images/aci-chatbot_ngrok.png" border="0" alt="aci-chatbot_ngrok">

@@ -46,10 +46,38 @@ Even though most of the commands
 
 ### Execute ngrok (Optional)
 
+The bot application must be hosted in a server reachable via the public internet, as the webhooks are delivered from webex.com. For development and testing pursposes you could use [ngrok](https://ngrok.com/) to expose your server to the public internet. Ngrok will expose your application (Server IP & Port) over a secure tunnel.
+
 <p align="center">
-<img src="./docs/images/aci-chatbot.png" border="0" alt="aci-chatbot_ngrok">
+<img src="./docs/images/aci-chatbot_ngrok.png" border="0" alt="aci-chatbot_ngrok">
 <br/>
 
+* [Install ngrok](https://ngrok.com/download)
+
+Follow these instruction after installing ngrok:
+
+* Start the ngrok service stating the port the bot server listens to. By default is listens to por **7001**, however if you are using the docker container you shoudl list the port used for port-forwarding.
+
+        ./ngrok http <bot_pot> --region=eu
+
+```
+ngrok by @inconshreveable    
+
+Session Status                online
+Session Expires               1 hour, 59 minutes
+Version                       2.3.40
+Region                        Europe (eu)
+Web Interface                 http://127.0.0.1:7001
+Forwarding                    http://2d6e-89-246-96-47.eu.ngrok.io -> http://localhost:7001
+Forwarding                    https://2d6e-89-246-96-47.eu.ngrok.io -> http://localhost:7001
+
+Connections                   ttl     opn     rt1     rt5     p50     p90
+                              0       0       0.00    0.00    0.00    0.00
+```
+
+*  The generated HTTP url is your `BOT_URL`
+
+> **_NOTE:_**:  The trial version of ngrok creates the secure tunnel only for 2 hours
 
 ### Option 1: Build the code from source
 

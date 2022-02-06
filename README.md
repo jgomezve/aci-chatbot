@@ -25,13 +25,7 @@ This application allows you query information about the operatioanl status of yo
 •	/websocket	->	Subscribe to Fabric events 📩
 ```
 
-The `/websocket` command allows Webex rooms/spaces to subscribe to events for specific APIC MO/Class. After the Webex room is subscribed, the bot will send immediate notifications once any instance of the defined MO/Class is created, modified or deleted. In the background this command leverages the [APIC WebSocket](https://www.cisco.com/c/en/us/td/docs/switches/datacenter/aci/apic/sw/2-x/rest_cfg/2_1_x/b_Cisco_APIC_REST_API_Configuration_Guide/b_Cisco_APIC_REST_API_Configuration_Guide_chapter_01.html#concept_71EBE2E241C3442BA326273AF1A9B617) functionality.
-
-
-
-The other commands
-[APIC REST API](https://www.cisco.com/c/en/us/td/docs/switches/datacenter/aci/apic/sw/2-x/rest_cfg/2_1_x/b_Cisco_APIC_REST_API_Configuration_Guide/b_Cisco_APIC_REST_API_Configuration_Guide_chapter_01.html#d54e540a1635)
-
+The bot leverages the APIC Management Information Tree to query and filter information from the [APIC REST API](https://www.cisco.com/c/en/us/td/docs/switches/datacenter/aci/apic/sw/2-x/rest_cfg/2_1_x/b_Cisco_APIC_REST_API_Configuration_Guide/b_Cisco_APIC_REST_API_Configuration_Guide_chapter_01.html#d54e540a1635). Furthermore, the `/websocket` leverages the [APIC WebSocket](https://www.cisco.com/c/en/us/td/docs/switches/datacenter/aci/apic/sw/2-x/rest_cfg/2_1_x/b_Cisco_APIC_REST_API_Configuration_Guide/b_Cisco_APIC_REST_API_Configuration_Guide_chapter_01.html#concept_71EBE2E241C3442BA326273AF1A9B617) functionality, to get instant notification once any instance of a defined MO/Class is created, modified or deleted.
 
 
 ## Prerequisites

@@ -40,11 +40,11 @@ The bot takes advantage of the [APIC REST API](https://www.cisco.com/c/en/us/td/
 
     1. Give your bot details
 
-        ![add-app](docs/images/bot_details.png)
+        ![add-app](docs/images/bot_details.png "Create Bot") 
     
     2. The generate token is your `WEBEX_TOKEN`
 
-        ![add-app](docs/images/bot_token.png)
+        ![add-app](docs/images/bot_token.png "Bot Token")
 
 ## Installation
 
@@ -123,6 +123,6 @@ APIC_PASSWORD=admin
 
 Either send a message directly to your bot or add it to a Webex Group
 
-![add-app](docs/images/webex_message.png)
+![add-app](docs/images/webex_message.png "Bot Message")
 
 > **_NOTE:_** Some commands do not work if the target APIC is a simulator

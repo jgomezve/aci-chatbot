@@ -10,7 +10,7 @@ A lightweight bot application to interact with the APIC from a Webex chat room
 Monitor your Data Center using an user-friendly bot. This repository contains a [Go](https://go.dev/)-based application that spins up a web server, which listens to [Webex](https://www.webex.com/) [webhooks](https://developer.webex.com/docs/api/guides/webhooks) notifications and interacts with the [APIC](https://www.cisco.com/c/en/us/products/cloud-systems-management/application-policy-infrastructure-controller-apic/index.html) REST API to retrieve information about the operational status of your [ACI](https://www.cisco.com/c/en/us/solutions/data-center-virtualization/application-centric-infrastructure/index.html) Fabric.
 
 <p align="center">
-<img src="./docs/images/aci-chatbot.png" border="0" alt="aci-chatbot">
+<img src="docs/images/aci-chatbot.png" border="0" alt="aci-chatbot">
 <br/>
 
 This application allows you retrieve operational, topology, event/fault, endpoint information from the ACI Fabric by simply typing short and human-readable command in a Webex room. These is the list of the currently supported commands by the aci-chatbot:
@@ -40,11 +40,11 @@ The bot takes advantage of the [APIC REST API](https://www.cisco.com/c/en/us/td/
 
     1. Give your bot details
 
-        ![add-app](./docs/images/bot_details.png)
+        ![add-app](docs/images/bot_details.png)
     
     2. The generate token is your `WEBEX_TOKEN`
 
-        ![add-app](./docs/images/bot_token.png)
+        ![add-app](docs/images/bot_token.png)
 
 ## Installation
 
@@ -52,9 +52,8 @@ The bot takes advantage of the [APIC REST API](https://www.cisco.com/c/en/us/td/
 
 The bot application must be hosted in a server reachable via the public internet, because the webhooks are delivered from webex.com. For development and testing pursposes you could use [ngrok](https://ngrok.com/) to expose your server to the public internet. Ngrok will expose your application (Server IP & Port) over a secure tunnel.
 
-<p align="center">
-<img src="./docs/images/aci-chatbot_ngrok.png" border="0" alt="aci-chatbot_ngrok">
-<br/>
+
+![Ngrok Diagram](docs/images/chatbot_ngrok.png "Ngrok Diagram")
 
 * [Install ngrok](https://ngrok.com/download)
 
@@ -124,6 +123,6 @@ APIC_PASSWORD=admin
 
 Either send a message directly to your bot or add it to a Webex Group
 
-![add-app](./docs/images/webex_message.png)
+![add-app](docs/images/webex_message.png)
 
 > **_NOTE:_** Some commands do not work if the target APIC is a simulator

@@ -1,6 +1,6 @@
 # Monitor an ACI Fabric from your favorite Webex Room - ChatOps
 
-[![Tests](https://github.com/jgomezve/aci-chatbot/actions/workflows/test.yml/badge.svg)](https://github.com/jgomezve/aci-chatbot/actions/workflows/test.yml)
+[![Tests](https://github.com/jgomezve/aci-chatbot/actions/workflows/test.yml/badge.svg)](https://github.com/jgomezve/aci-chatbot/actions/workflows/test.yml) [![published](https://static.production.devnetcloud.com/codeexchange/assets/images/devnet-published.svg)](https://developer.cisco.com/codeexchange/github/repo/jgomezve/aci-chatbot)
 
 
 A lightweight bot application to interact with the APIC from a Webex chat room

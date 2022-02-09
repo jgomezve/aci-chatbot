@@ -5,8 +5,6 @@
 name: Tests
 on:
   push:
-    # tags-ignore:
-    #   - 'v*'
     paths-ignore:
       - '*.md'
 

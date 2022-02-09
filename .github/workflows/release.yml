@@ -1,20 +1,14 @@
-# This GitHub action runs your tests for each commit push and/or PR. Optionally
-# you can turn it on using a cron schedule for regular testing.
+# This GitHub action can publish assets for release when a tag is created.
+# Currently its setup to run on any tag that matches the pattern "v*" (ie. v0.1.0).
 #
-name: Tests
+name: Release
 on:
   push:
-  paths-ignore:
-        - '*.md'
-
-env:
-  REGISTRY: docker.io
-
+    tags:
+      - 'v*'
 jobs:
-  test:
-    name: Test
+  goreleaser:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v2
       - name: Set up Go
@@ -31,6 +25,14 @@ jobs:
         run: |
           make test
 
+      - name: Set env
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+
+      - name: Test
+        run: |
+          echo $RELEASE_VERSION
+          echo ${{ env.RELEASE_VERSION }}
+
       - name: Log into registry
         if: github.ref == 'refs/heads/main'
         uses: docker/login-action@42d299face0c5c43a0487c477f595ac9cf22f1a7
@@ -46,7 +48,7 @@ jobs:
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ github.repository }}:latest
+          tags: ${{ github.repository }}:${{ env.RELEASE_VERSION }}
   
       - name: Webex Notification
         if: always()

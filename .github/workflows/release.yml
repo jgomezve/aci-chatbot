@@ -7,7 +7,7 @@ on:
     tags:
       - 'v*'
     branches: 
-      - master
+      - main
 
 env:
   REGISTRY: docker.io

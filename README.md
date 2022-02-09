@@ -53,7 +53,7 @@ The bot takes advantage of the [APIC REST API](https://www.cisco.com/c/en/us/td/
 The bot application must be hosted in a server reachable via the public internet, because the webhooks are delivered from webex.com. For development and testing pursposes you could use [ngrok](https://ngrok.com/) to expose your server to the public internet. Ngrok will expose your application (Server IP & Port) over a secure tunnel.
 
 
-![Ngrok Diagram](docs/images/chatbot_ngrok.png "Ngrok Diagram")
+![Ngrok Diagram](docs/images/aci-chatbot_ngrok.png "Ngrok Diagram")
 
 * [Install ngrok](https://ngrok.com/download)
 

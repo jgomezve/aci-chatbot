@@ -7,7 +7,7 @@ on:
     tags:
       - 'v*'
 jobs:
-  goreleaser:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -28,13 +28,7 @@ jobs:
       - name: Set env
         run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
 
-      - name: Test
-        run: |
-          echo $RELEASE_VERSION
-          echo ${{ env.RELEASE_VERSION }}
-
       - name: Log into registry
-        if: github.ref == 'refs/heads/main'
         uses: docker/login-action@42d299face0c5c43a0487c477f595ac9cf22f1a7
         with:
           registry: ${{ env.REGISTRY }}
@@ -42,7 +36,6 @@ jobs:
           password: ${{ secrets.DOCKER_HUB_PASSWORD }}
 
       - name: Build and push Docker image
-        if: github.ref == 'refs/heads/main'
         id: build-and-push
         uses: docker/build-push-action@7f9d37fa544684fb73bfe4835ed7214c255ce02b
         with:
@@ -51,7 +44,6 @@ jobs:
           tags: ${{ github.repository }}:${{ env.RELEASE_VERSION }}
   
       - name: Webex Notification
-        if: always()
         uses: qsnyder/action-wxt@master
         env:
           TOKEN: ${{ secrets.WEBEX_TOKEN }}

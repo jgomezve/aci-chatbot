@@ -6,6 +6,12 @@ on:
   push:
     tags:
       - 'v*'
+    branches: 
+      - master
+
+env:
+  REGISTRY: docker.io
+
 jobs:
   release:
     runs-on: ubuntu-latest

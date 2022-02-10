@@ -528,7 +528,6 @@ func (b *Bot) SetupWebSocket() error {
 	wsck, err := apic.NewApicWebSClient(b.apic.GetIp(), b.apic.GetToken())
 	if err != nil {
 		b.wsck = nil
-		fmt.Println(err)
 		return err
 	}
 	b.wsck = wsck

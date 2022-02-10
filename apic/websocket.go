@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/gorilla/websocket"
 )
@@ -17,7 +18,7 @@ type ApicWebSocket struct {
 }
 
 func NewApicWebSClient(ip string, token string) (*ApicWebSocket, error) {
-	u := fmt.Sprintf("wss://10.49.208.146/socket%s", token)
+	u := fmt.Sprintf("wss://%s/socket%s", strings.Replace(ip, "https://", "", -1), token)
 	d := *websocket.DefaultDialer
 	d.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	log.Printf("Setting up Websocket...")

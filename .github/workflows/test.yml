@@ -34,7 +34,7 @@ jobs:
 
       - name: Log into registry
         if: github.ref == 'refs/heads/main'
-        uses: docker/login-action@dd4fa0671be5250ee6f50aedf4cb05514abda2c7
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
         with:
           registry: ${{ env.REGISTRY }}
           username: jgomezve
